@@ -19,6 +19,12 @@ export interface PtyEvents {
   status(s: PtyStatus): void
 }
 
+/**
+ * A shell at its prompt is idle, whichever shell it is: people's login shell
+ * often hands over to another one (`exec fish` in .zprofile, nix, tmux...).
+ */
+const SHELLS = new Set(['sh', 'bash', 'zsh', 'fish', 'dash', 'ksh', 'tcsh', 'csh', 'nu', 'pwsh', 'xonsh', 'elvish', 'login'])
+
 /** Variables that describe *our* process and would confuse tools in the shell. */
 const STRIP_ENV = [/^npm_/, /^ELECTRON_/, /^VITE_/, /^NODE_ENV$/, /^INIT_CWD$/, /^MRTERMINAL_/]
 
@@ -189,7 +195,7 @@ export class PtyManager {
         } catch {
           continue
         }
-        const busy = name !== '' && name !== session.shellName
+        const busy = name !== '' && name !== session.shellName && !SHELLS.has(name)
         if (busy !== session.busy || name !== session.process) {
           session.busy = busy
           session.process = name

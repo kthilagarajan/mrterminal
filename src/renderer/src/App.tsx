@@ -5,6 +5,7 @@ import { Icon } from './Icon'
 import { RestorePrompt } from './RestorePrompt'
 import { SettingsDialog } from './SettingsDialog'
 import { Sidebar } from './Sidebar'
+import { UpdateButton } from './UpdateButton'
 import { patchConfig, refreshScripts, useStore } from './store'
 
 function Workspace({ projectId, active }: { projectId: string; active: boolean }) {
@@ -84,6 +85,7 @@ export function App() {
                 {active.path.replace(window.api.home, '~')}
               </button>
               <span className="spacer" />
+              <UpdateButton />
               <button className="btn" onClick={() => getDock(active.id)?.openShell('auto')}>
                 <Icon name="plus" /> Terminal
               </button>

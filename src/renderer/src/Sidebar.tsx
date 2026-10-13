@@ -180,6 +180,97 @@ function PresetForm({ project, existing, onDone }: { project: Project; existing?
   )
 }
 
+type MapNode = { size: number } & ({ kind: 'leaf'; ids: string[] } | { kind: 'branch'; children: MapNode[] })
+
+/** Read the split tree out of a saved dockview layout; null if there is none. */
+function parseLayout(layout: unknown): { root: MapNode; horizontal: boolean; ratio: number } | null {
+  type Raw = { type?: string; size?: number; data?: unknown }
+  const node = (raw: Raw): MapNode | null => {
+    const size = typeof raw?.size === 'number' && raw.size > 0 ? raw.size : 1
+    if (raw?.type === 'leaf') {
+      const views = (raw.data as { views?: unknown })?.views
+      return Array.isArray(views) ? { kind: 'leaf', size, ids: views.filter((v) => typeof v === 'string') } : null
+    }
+    if (raw?.type === 'branch' && Array.isArray(raw.data)) {
+      const children = raw.data.map(node).filter((n): n is MapNode => n !== null)
+      return children.length > 0 ? { kind: 'branch', size, children } : null
+    }
+    return null
+  }
+  const grid = (layout as { grid?: { root?: Raw; orientation?: string; width?: number; height?: number } })?.grid
+  const root = grid?.root ? node(grid.root) : null
+  if (!grid || !root) return null
+  const ratio = grid.width && grid.height ? grid.width / grid.height : 1.6
+  return { root, horizontal: grid.orientation !== 'VERTICAL', ratio: Math.min(3, Math.max(1, ratio)) }
+}
+
+/** Pane ids in reading order: the order the terminals are numbered in. */
+function leafIds(node: MapNode): string[] {
+  return node.kind === 'leaf' ? node.ids : node.children.flatMap(leafIds)
+}
+
+function LayoutMap({ node, horizontal, label }: { node: MapNode; horizontal: boolean; label: Map<string, { n: number; title: string }> }) {
+  if (node.kind === 'branch') {
+    return (
+      <div className="map-branch" style={{ flexGrow: node.size, flexDirection: horizontal ? 'row' : 'column' }}>
+        {node.children.map((child, i) => (
+          <LayoutMap key={i} node={child} horizontal={!horizontal} label={label} />
+        ))}
+      </div>
+    )
+  }
+  const items = node.ids.map((id) => label.get(id)).filter((x) => x !== undefined)
+  return (
+    <div className="map-leaf" style={{ flexGrow: node.size }} title={items.length > 1 ? 'Tabs in the same pane' : undefined}>
+      {items.map((item) => (
+        <div className="map-item" key={item.n}>
+          <b className="num">{item.n}</b>
+          <span>{item.title}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** What a preset will do: a miniature of the window, and the command behind each number. */
+function PresetDetails({ project, preset }: { project: Project; preset: Preset }) {
+  const layout = parseLayout(preset.layout)
+  const order = layout ? leafIds(layout.root) : []
+  const terminals = [...preset.terminals].sort((a, b) => {
+    const [ia, ib] = [order.indexOf(a.id), order.indexOf(b.id)]
+    return (ia < 0 ? Infinity : ia) - (ib < 0 ? Infinity : ib)
+  })
+  const label = new Map(terminals.map((t, i) => [t.id, { n: i + 1, title: t.title }]))
+
+  return (
+    <div className="preset-body">
+      {layout && (
+        <>
+          <div className="preset-caption">Opens in this layout</div>
+          <div className="map" style={{ aspectRatio: String(layout.ratio) }}>
+            <LayoutMap node={layout.root} horizontal={layout.horizontal} label={label} />
+          </div>
+        </>
+      )}
+      <ol className="preset-list">
+        {terminals.map((t, i) => {
+          const folder = t.cwd.startsWith(`${project.path}/`) ? t.cwd.slice(project.path.length + 1) : ''
+          return (
+            <li key={t.id} title={`${t.command ?? 'Shell'}\n${t.cwd}`}>
+              <b className="num">{i + 1}</b>
+              <span>{t.title}</span>
+              <code>
+                {t.command ?? 'shell'}
+                {folder && ` · in ${folder}/`}
+              </code>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
 function Presets({ project, statuses }: { project: Project; statuses: Record<string, TermStatus> }) {
   /** 'new', the id of the preset being edited, or null when the form is closed. */
   const [editing, setEditing] = useState<string | null>(null)
@@ -211,28 +302,25 @@ function Presets({ project, statuses }: { project: Project; statuses: Record<str
             : states.some((s) => s.state !== 'none')
               ? 'open'
               : 'none'
-        const titles = preset.terminals.map((t) => t.title)
+        const count = preset.terminals.length
         return (
-          <ScriptRow
-            key={preset.id}
-            script={{
-              name: preset.name,
-              command: `Opens ${titles.length} terminal${titles.length === 1 ? '' : 's'}:`,
-              cwd: project.path,
-              detail: titles.join(' · ')
-            }}
-            state={state}
-            hint={
-              state === 'running'
-                ? 'All running. Click to show them'
-                : state === 'open'
-                  ? 'Click to start the ones that are not running'
-                  : 'Click to open them all'
-            }
-            onRun={() => getDock(project.id)?.launch(preset)}
-            onEdit={() => setEditing(preset.id)}
-            onRemove={() => editProject(project.id, (p) => ({ ...p, presets: p.presets.filter((x) => x.id !== preset.id) }))}
-          />
+          <div className="preset" key={preset.id}>
+            <ScriptRow
+              script={{ name: preset.name, command: preset.name, cwd: project.path, detail: `${count} terminal${count === 1 ? '' : 's'}` }}
+              state={state}
+              hint={
+                state === 'running'
+                  ? 'All running. Click to put them back in this layout'
+                  : state === 'open'
+                    ? 'Click to start the ones that are not running'
+                    : 'Click to open them all'
+              }
+              onRun={() => getDock(project.id)?.launch(preset)}
+              onEdit={() => setEditing(preset.id)}
+              onRemove={() => editProject(project.id, (p) => ({ ...p, presets: p.presets.filter((x) => x.id !== preset.id) }))}
+            />
+            <PresetDetails project={project} preset={preset} />
+          </div>
         )
       })}
       {editing === 'new' && <PresetForm project={project} onDone={() => setEditing(null)} />}
@@ -370,13 +458,21 @@ function startResize(event: MouseEvent, startWidth: number): void {
   window.addEventListener('mouseup', up)
 }
 
+/** `~/code` for `/Users/me/code/webportal`: the name already says the rest. */
+function parentFolder(path: string): string {
+  const parent = path.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '') || '/'
+  return parent.startsWith(window.api.home) ? `~${parent.slice(window.api.home.length)}` : parent
+}
+
 export function Sidebar({ config }: { config: Config }) {
   const statuses = useStore((s) => s.statuses)
   const active = config.projects.find((p) => p.id === config.activeProjectId)
 
   return (
     <aside className="sidebar" style={{ width: config.sidebarWidth }}>
-      <div className="sidebar-drag" />
+      <div className="sidebar-drag">
+        <span className="brand">MrTerminal</span>
+      </div>
       <div className="section-head">
         <span>Projects</span>
         <button className="icon-btn" title="Add a project folder" onClick={() => void pickProject()}>
@@ -394,10 +490,14 @@ export function Sidebar({ config }: { config: Config }) {
               title={project.path}
               onClick={() => selectProject(project.id)}
             >
-              <Icon name="folder" />
-              <span className="project-name">{project.name}</span>
+              <span className="project-tile">{project.name.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 1) || '·'}</span>
+              <span className="project-text">
+                <span className="project-name">{project.name}</span>
+                <span className="project-path">{parentFolder(project.path)}</span>
+              </span>
               {running > 0 && (
-                <span className="badge" title={`${running} running`}>
+                <span className="project-running" title={`${running} running`}>
+                  <span className="dot dot-busy" />
                   {running}
                 </span>
               )}

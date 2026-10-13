@@ -1,6 +1,7 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
-import { Terminal } from '@xterm/xterm'
+import { Terminal, type ITheme } from '@xterm/xterm'
+import { getTheme, type Theme } from '@shared/themes'
 import type { TerminalDef } from '@shared/types'
 import { getState, setStatus } from './store'
 
@@ -25,30 +26,30 @@ const runtimes = new Map<string, Runtime>()
 const exitHandlers = new Map<string, (exitCode: number) => void>()
 let onCleanExit: (id: string) => void = () => {}
 
-const FONT = '"SF Mono", Menlo, Monaco, "JetBrains Mono", "DejaVu Sans Mono", Consolas, monospace'
+const DEFAULT_FONT = '"SF Mono", Menlo, Monaco, "JetBrains Mono", "DejaVu Sans Mono", Consolas, monospace'
 
-const THEME = {
-  background: '#0d0e12',
-  foreground: '#d7dae0',
-  cursor: '#f472b6',
-  cursorAccent: '#0d0e12',
-  selectionBackground: '#3b4261',
-  black: '#1c1e26',
-  red: '#f7768e',
-  green: '#9ece6a',
-  yellow: '#e0af68',
-  blue: '#7aa2f7',
-  magenta: '#bb9af7',
-  cyan: '#7dcfff',
-  white: '#c0caf5',
-  brightBlack: '#565f89',
-  brightRed: '#ff899d',
-  brightGreen: '#b9f27c',
-  brightYellow: '#ffc777',
-  brightBlue: '#8db0ff',
-  brightMagenta: '#c7a9ff',
-  brightCyan: '#a4daff',
-  brightWhite: '#ffffff'
+/** The user's font first, ours behind it in case it is missing a glyph (or missing). */
+export function fontStack(custom: string | null | undefined): string {
+  const name = custom?.trim().replace(/["']/g, '')
+  return name ? `"${name}", ${DEFAULT_FONT}` : DEFAULT_FONT
+}
+
+function terminalTheme(theme: Theme): ITheme {
+  const [black, red, green, yellow, blue, magenta, cyan, white] = theme.term.normal
+  const [brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite] =
+    theme.term.bright
+  return {
+    background: theme.ui.bg,
+    foreground: theme.ui.text,
+    cursor: theme.ui.accent,
+    cursorAccent: theme.ui.bg,
+    selectionBackground: theme.term.selection,
+    scrollbarSliderBackground: `${theme.ui.muted}40`,
+    scrollbarSliderHoverBackground: `${theme.ui.muted}66`,
+    scrollbarSliderActiveBackground: `${theme.ui.muted}80`,
+    black, red, green, yellow, blue, magenta, cyan, white,
+    brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite
+  }
 }
 
 /** The line-editing shortcuts macOS users expect from Terminal.app / iTerm. */
@@ -75,15 +76,16 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
   if (existing) return existing
 
   const { id } = def
+  const settings = getState().config?.settings
   const term = new Terminal({
-    fontFamily: FONT,
-    fontSize: getState().config?.settings.fontSize ?? 13,
+    fontFamily: fontStack(settings?.fontFamily),
+    fontSize: settings?.fontSize ?? 13,
     lineHeight: 1.2,
     cursorBlink: true,
     scrollback: 10000,
     allowProposedApi: true,
     macOptionClickForcesSelection: true,
-    theme: THEME
+    theme: terminalTheme(getTheme(settings?.theme))
   })
   const fit = new FitAddon()
   term.loadAddon(fit)
@@ -195,11 +197,16 @@ export function disposeRuntime(id: string): void {
   runtimes.get(id)?.dispose()
 }
 
-export function setFontSize(size: number): void {
+export function setFont(size: number, family: string | null): void {
   for (const runtime of runtimes.values()) {
     runtime.term.options.fontSize = size
+    runtime.term.options.fontFamily = fontStack(family)
     runtime.refit()
   }
+}
+
+export function setTerminalTheme(theme: Theme): void {
+  for (const runtime of runtimes.values()) runtime.term.options.theme = terminalTheme(theme)
 }
 
 /** Route process events from the main process to their terminals. */

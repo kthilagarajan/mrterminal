@@ -10,6 +10,10 @@ export interface Settings {
   /** Absolute path of the shell to launch. null = the user's login shell. */
   shell: string | null
   fontSize: number
+  /** Terminal font family. null = the built-in monospace stack. */
+  fontFamily: string | null
+  /** Id of a theme from `themes.ts`. */
+  theme: string
 }
 
 export interface TerminalDef {
@@ -110,6 +114,19 @@ export interface PtyStatus {
   process: string
 }
 
+export interface UpdateState {
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'
+  /** The version that is running. */
+  current: string
+  /** The newer version on offer. */
+  version?: string
+  /** False where the app cannot replace itself; the download page opens instead. */
+  canInstall?: boolean
+  /** Download progress, 0-99. */
+  progress?: number
+  error?: string
+}
+
 export type MenuAction =
   | 'new-terminal'
   | 'split-right'
@@ -120,11 +137,14 @@ export type MenuAction =
   | 'add-project'
   | 'toggle-sidebar'
   | 'settings'
+  | 'check-updates'
 
 export const DEFAULT_SETTINGS: Settings = {
   restoreOnLaunch: 'ask',
   shell: null,
-  fontSize: 13
+  fontSize: 13,
+  fontFamily: null,
+  theme: 'midnight'
 }
 
 export function defaultConfig(): Config {

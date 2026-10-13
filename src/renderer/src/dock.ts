@@ -278,40 +278,37 @@ export class ProjectDock {
   }
 
   /**
-   * Bring up everything in a preset. Into an empty project it reproduces the
-   * saved arrangement exactly. Otherwise nothing that is open is disturbed:
-   * terminals the preset still lacks are added, and stopped ones are re-run.
+   * Bring up a preset in its saved arrangement. Terminals of it that are
+   * already open are kept (their processes are not touched, stopped ones are
+   * re-run) and moved into place; the rest are started. Terminals that are not
+   * part of the preset stay open alongside.
    */
   launch(preset: Preset): void {
     const open = getProject(this.projectId)?.terminals ?? []
-    const twin = (t: TerminalDef): TerminalDef | undefined =>
-      open.find((o) => o.command === t.command && o.cwd === t.cwd)
+    const taken = new Set<string>()
+    const ids = new Map<string, string>()
+    const stopped: string[] = []
 
-    if (open.length === 0) {
-      const ids = new Map(preset.terminals.map((t) => [t.id, uid()]))
-      const defs = preset.terminals.map((t) => ({ ...t, id: ids.get(t.id)! }))
-      for (const def of defs) {
+    for (const terminal of preset.terminals) {
+      const existing = open.find(
+        (o) => !taken.has(o.id) && o.command === terminal.command && o.cwd === terminal.cwd
+      )
+      if (existing) {
+        taken.add(existing.id)
+        ids.set(terminal.id, existing.id)
+        if (existing.command && !getState().statuses[existing.id]?.busy) stopped.push(existing.id)
+      } else {
+        const def = { ...terminal, id: uid() }
+        ids.set(terminal.id, def.id)
         addTerminalDef(this.projectId, def)
         ensureRuntime(def, true)
       }
-      this.applyLayout(renameIds(preset.layout, ids))
-      this.saveLayout()
-      this.focus()
-      return
     }
 
-    let first: string | undefined
-    for (const terminal of preset.terminals) {
-      const existing = twin(terminal)
-      if (!existing) {
-        const { id: _old, ...spec } = terminal
-        this.open(spec, 'auto')
-      } else if (existing.command && !getState().statuses[existing.id]?.busy) {
-        getRuntime(existing.id)?.restart()
-      }
-      first ??= existing?.id
-    }
-    if (first && preset.terminals.every(twin)) this.focus(first)
+    this.applyLayout(preset.layout ? renameIds(preset.layout, ids) : null)
+    this.saveLayout()
+    for (const id of stopped) getRuntime(id)?.restart()
+    this.focus(ids.get(preset.terminals[0]?.id))
   }
 
   private saveLayout(): void {

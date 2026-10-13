@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { Config, Project, ScriptGroup, Settings, TerminalDef } from '@shared/types'
+import type { Config, Project, ScriptGroup, Settings, TerminalDef, UpdateState } from '@shared/types'
 
 export interface TermStatus {
   busy: boolean
@@ -17,6 +17,7 @@ export interface State {
   statuses: Record<string, TermStatus>
   scripts: Record<string, ScriptGroup[] | undefined>
   settingsOpen: boolean
+  update: UpdateState | null
 }
 
 let state: State = {
@@ -25,7 +26,8 @@ let state: State = {
   restoreRun: true,
   statuses: {},
   scripts: {},
-  settingsOpen: false
+  settingsOpen: false,
+  update: null
 }
 
 const listeners = new Set<() => void>()

@@ -8,11 +8,10 @@
   --muted: #7d8494;
   --faint: #565c6b;
   --accent: #db2777;
-  --accent-soft: rgba(219, 39, 119, 0.16);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --green: #4ade80;
   --red: #f87171;
   --mono: 'SF Mono', Menlo, Monaco, 'JetBrains Mono', 'DejaVu Sans Mono', Consolas, monospace;
-  color-scheme: dark;
 }
 
 * {
@@ -108,7 +107,7 @@ kbd {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #e83a88;
+  background: color-mix(in srgb, var(--accent) 86%, white);
 }
 
 .icon-btn {
@@ -257,13 +256,26 @@ kbd {
 }
 
 .sidebar-drag {
+  display: flex;
+  align-items: center;
   flex: none;
-  height: 8px;
+  height: 44px;
+  padding: 0 14px;
   -webkit-app-region: drag;
 }
 
+/* Sit beside the traffic lights. */
 [data-platform='darwin'] .sidebar-drag {
-  height: 44px;
+  padding-left: 84px;
+}
+
+.brand {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .sidebar-resize {
@@ -295,72 +307,116 @@ kbd {
 
 .projects {
   flex: none;
-  max-height: 34%;
+  max-height: 38%;
   overflow-y: auto;
-  padding: 0 6px 8px;
+  padding: 2px 8px 10px;
 }
 
 .project {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 4px 0 8px;
-  border-radius: 6px;
-  color: var(--muted);
+  gap: 10px;
+  height: 44px;
+  padding: 0 6px 0 7px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
+.project + .project {
+  margin-top: 2px;
+}
+
 .project:hover {
+  background: color-mix(in srgb, var(--hover) 55%, transparent);
+}
+
+.project-active,
+.project-active:hover {
   background: var(--hover);
 }
 
-.project-active {
-  background: var(--accent-soft);
-  color: var(--text);
+/* The project's initial, standing in for an icon. */
+.project-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
-.project-active:hover {
-  background: var(--accent-soft);
+.project-active .project-tile {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
-.project-active .icon {
-  color: var(--accent);
-}
-
-.project-name {
+.project-text {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.project-name,
+.project-path {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.project-name {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.project-active .project-name,
+.project:hover .project-name {
   color: var(--text);
+}
+
+.project-path {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+/* How many processes are running: a quiet count, not a banner. */
+.project-running {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.project-running .dot {
+  width: 6px;
+  height: 6px;
+  box-shadow: none;
 }
 
 .project-remove,
 .script-remove {
-  visibility: hidden;
+  display: none;
 }
 
 .project:hover .project-remove,
 .script:hover .script-remove {
-  visibility: visible;
+  display: inline-flex;
 }
 
-.project .project-remove .icon {
-  color: inherit;
-}
-
-.badge {
-  min-width: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: rgba(74, 222, 128, 0.14);
-  color: var(--green);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
-  text-align: center;
+.project:hover .project-running {
+  display: none;
 }
 
 .scripts {
@@ -594,7 +650,7 @@ kbd {
 
 .dot-busy {
   background: var(--green);
-  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 16%, transparent);
 }
 
 .dot-exited {
@@ -619,7 +675,7 @@ kbd {
   --dv-tab-divider-color: var(--border);
   --dv-separator-border: var(--border);
   --dv-paneview-header-border-color: var(--border);
-  --dv-drag-over-background-color: rgba(219, 39, 119, 0.18);
+  --dv-drag-over-background-color: color-mix(in srgb, var(--accent) 18%, transparent);
   --dv-drag-over-border-color: var(--accent);
   --dv-active-sash-color: var(--accent);
   --dv-icon-hover-background-color: var(--hover);
@@ -824,7 +880,7 @@ kbd {
 ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 6px;
-  background: #2c303b;
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
   background-clip: content-box;
 }
 
@@ -836,4 +892,203 @@ kbd {
 .term .xterm-viewport,
 .term .xterm-scrollable-element {
   background-color: transparent !important;
+}
+
+/* ── Presets ─────────────────────────────────────────────────────────────── */
+
+.preset-body {
+  margin: 2px 4px 8px 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.preset-caption {
+  margin-bottom: 6px;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+/* A miniature of the window: one cell per pane, sized as it will open. */
+.map {
+  display: flex;
+  width: 100%;
+  max-height: 130px;
+  margin-bottom: 8px;
+  gap: 3px;
+}
+
+.map-branch {
+  display: flex;
+  flex-basis: 0;
+  min-width: 0;
+  min-height: 0;
+  gap: 3px;
+}
+
+.map-leaf {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  flex-basis: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 3px 5px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-2);
+}
+
+.map-item,
+.preset-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.map-item span,
+.preset-list span,
+.preset-list code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-item span {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.preset-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preset-list span {
+  flex: none;
+  max-width: 45%;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.preset-list code {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+  font-size: 11.5px;
+}
+
+/* ── Settings: themes and fonts ──────────────────────────────────────────── */
+
+.themes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.theme {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.theme-active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.theme-swatches {
+  display: flex;
+  gap: 4px;
+}
+
+.theme-swatches i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.field-row .field {
+  margin-bottom: 4px;
+}
+
+.field-row .field:not(.field-grow) {
+  width: 84px;
+}
+
+.field-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Dockview's base theme assumes a dark page; correct what shows through. */
+[data-theme='light'] .mrt-dock {
+  --dv-icon-hover-background-color: var(--hover);
+  --dv-tabs-container-scrollbar-color: var(--faint);
+}
+
+/* ── Updates ─────────────────────────────────────────────────────────────── */
+
+.btn-update {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.btn-update:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.btn-update:disabled {
+  opacity: 1;
+}
+
+.btn-update-failed {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--red) 16%, transparent);
+  color: var(--red);
+}
+
+.update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }

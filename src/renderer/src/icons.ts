@@ -15,6 +15,7 @@ export const icons = {
     '<circle cx="8" cy="8" r="2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1"/>'
   ),
   edit: svg('<path d="M10.5 3l2.5 2.5L6 12.5l-3 .5.5-3z"/>'),
+  download: svg('<path d="M8 2.5v8M4.5 7.5L8 11l3.5-3.5M3 13.5h10"/>'),
   chevron: svg('<path d="M6 4l4 4-4 4"/>', 12),
   sidebar: svg('<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3v10"/>'),
   terminal: svg('<path d="M3 5l3 3-3 3M8 11h5"/>')

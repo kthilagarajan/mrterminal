@@ -5,7 +5,8 @@ import type {
   PtyCreateOptions,
   PtyExit,
   PtyStatus,
-  ScriptGroup
+  ScriptGroup,
+  UpdateState
 } from '@shared/types'
 
 function on<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -26,6 +27,8 @@ const api = {
   },
   pickFolder: (): Promise<{ path: string; name: string } | null> => ipcRenderer.invoke('dialog:pick-folder'),
   detectScripts: (path: string): Promise<ScriptGroup[]> => ipcRenderer.invoke('scripts:detect', path),
+  /** Match the native window (background, title bar buttons) to the theme. */
+  setChrome: (background: string, dark: boolean): void => ipcRenderer.send('chrome:set', background, dark),
   reveal: (path: string): void => ipcRenderer.send('shell:reveal', path),
   pty: {
     create: (opts: PtyCreateOptions): Promise<{ ok: true } | { ok: false; error: string }> =>
@@ -36,6 +39,12 @@ const api = {
     onData: (cb: (e: { id: string; data: string }) => void) => on('pty:data', cb),
     onExit: (cb: (e: PtyExit) => void) => on('pty:exit', cb),
     onStatus: (cb: (e: PtyStatus) => void) => on('pty:status', cb)
+  },
+  update: {
+    get: (): Promise<UpdateState> => ipcRenderer.invoke('update:get'),
+    check: (): Promise<UpdateState> => ipcRenderer.invoke('update:check'),
+    install: (): void => ipcRenderer.send('update:install'),
+    onState: (cb: (state: UpdateState) => void) => on('update:state', cb)
   },
   onMenu: (cb: (action: MenuAction) => void) => on('menu', cb)
 }

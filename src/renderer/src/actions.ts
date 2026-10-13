@@ -1,4 +1,5 @@
 import type { Config, DetectedScript, MenuAction, Project, RestoreMode, ScriptGroup } from '@shared/types'
+import { applyAppearance } from './appearance'
 import { findDock, getDock } from './dock'
 import {
   addProject,
@@ -15,7 +16,10 @@ import { disposeRuntime, getRuntime, setCleanExitHandler } from './terminals'
 setCleanExitHandler((id) => findDock(id)?.close(id))
 
 export async function boot(): Promise<void> {
+  window.api.update.onState((update) => setState({ update }))
+  void window.api.update.get().then((update) => setState({ update }))
   const config = await window.api.config.load()
+  applyAppearance(config.settings)
   const hasSession = config.projects.some((p) => p.terminals.length > 0)
   setState({ config })
   // Nothing to restore, or the user already told us what they want.
@@ -103,5 +107,8 @@ export function handleMenu(action: MenuAction): void {
       return patchConfig({ sidebarHidden: !getState().config?.sidebarHidden })
     case 'settings':
       return setState({ settingsOpen: true })
+    case 'check-updates':
+      setState({ settingsOpen: true })
+      return void window.api.update.check()
   }
 }

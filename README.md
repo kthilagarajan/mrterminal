@@ -22,6 +22,20 @@ the download flag once and it opens normally:
 xattr -cr /Applications/MrTerminal.app
 ```
 
+### Updates
+
+MrTerminal checks this repository's GitHub releases when it starts and every
+few hours. When a newer version exists an **Update to x.y.z** button appears in
+the top bar; clicking it downloads the update, verifies its checksum, replaces
+the app and restarts it, and your terminals reopen. Settings shows the running
+version and has a "Check for updates" button.
+
+The check uses GitHub's public API, so it only finds releases while the
+repository is public.
+
+To publish a version: bump `version` in `package.json`, commit, then
+`git tag v<version> && git push --tags`.
+
 ## Run from source
 
 ```sh
@@ -56,10 +70,11 @@ if it stopped); ⌥-click starts a second copy.
 
 **Presets** (top of the script list). Several terminals in one click. Open the
 terminals you want together, arrange them, then press `+` next to Presets and
-name it. Clicking the preset later opens all of them in the same arrangement
-and runs their commands. If some are already open it leaves them alone, adds
-the missing ones and re-runs any that stopped. Presets are saved per project;
-hover a preset to rename it, replace it with what is open now, or delete it.
+name it. Each preset shows a miniature of the window with numbered panes, and
+the command behind each number, so you can see what will open where. Clicking
+it puts those terminals in that arrangement: ones already open are kept and
+moved into place, stopped ones are re-run, missing ones are started. Hover a
+preset to rename it, replace it with what is open now, or delete it.
 
 **Custom commands** (below the detected scripts). Anything that is not in a script
 file: press `+`, type the command, and optionally give it a name and a folder
@@ -93,6 +108,13 @@ terminals from last time:
 
 Tick "always do this" to stop being asked; change it later in Settings (⌘,).
 
+## Appearance
+
+Settings (⌘,) has six themes (Midnight, Dracula, Nord, Solarized Dark,
+Daylight, Solarized Light) that recolour the app and the terminals together,
+and a terminal font field: type the name of any font installed on the machine
+(for example a Nerd Font for prompt icons) and pick a size.
+
 Processes do not survive quitting the app: resuming starts them again, and
 scrollback from the previous run is not kept.
 
@@ -103,6 +125,8 @@ src/main/      Electron main process
   pty.ts         shell processes (node-pty)
   scripts.ts     script detection, with tests in scripts.test.ts
   config.ts      ~/.mrterminal/config.json
+  updater.ts     over-the-air updates from GitHub releases
+src/shared/    types and themes used by both sides
 src/preload/   the API exposed to the UI
 src/renderer/  React UI
   dock.ts        split/tab layout (dockview)

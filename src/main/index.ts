@@ -1,10 +1,12 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell, type MenuItemConstructorOptions } from 'electron'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import type { Config, MenuAction, PtyCreateOptions } from '@shared/types'
+import { getTheme } from '@shared/themes'
 import { ConfigStore } from './config'
 import { PtyManager } from './pty'
 import { detectScripts } from './scripts'
+import { Updater } from './updater'
 
 const isMac = process.platform === 'darwin'
 
@@ -24,6 +26,8 @@ const ptys = new PtyManager(
   () => store.get().settings.shell
 )
 
+const updater = new Updater((state) => send('update:state', state))
+
 function saveBounds(): void {
   if (!win || win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return
   const maximized = win.isMaximized()
@@ -33,6 +37,8 @@ function saveBounds(): void {
 
 function createWindow(): void {
   const saved = store.get().window
+  const theme = getTheme(store.get().settings.theme)
+  nativeTheme.themeSource = theme.dark ? 'dark' : 'light'
   win = new BrowserWindow({
     width: saved?.width ?? 1320,
     height: saved?.height ?? 840,
@@ -41,7 +47,7 @@ function createWindow(): void {
     minWidth: 720,
     minHeight: 420,
     show: false,
-    backgroundColor: '#0d0e12',
+    backgroundColor: theme.ui.bg,
     title: 'MrTerminal',
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 17 },
@@ -82,7 +88,7 @@ function buildMenu(): void {
   const key = (mac: string, other: string): string => (isMac ? mac : other)
   const item = (label: string, accelerator: string, action: MenuAction): MenuItemConstructorOptions => ({
     label,
-    accelerator,
+    accelerator: accelerator || undefined,
     click: () => send('menu', action)
   })
 
@@ -93,6 +99,7 @@ function buildMenu(): void {
             label: app.name,
             submenu: [
               { role: 'about' },
+              item('Check for Updates…', '', 'check-updates'),
               { type: 'separator' },
               item('Settings…', 'Cmd+,', 'settings'),
               { type: 'separator' },
@@ -162,12 +169,20 @@ function registerIpc(): void {
     return result.canceled || !path ? null : { path, name: basename(path) }
   })
   ipcMain.handle('scripts:detect', (_e, path: string) => detectScripts(path))
+  ipcMain.on('chrome:set', (_e, background: string, dark: boolean) => {
+    nativeTheme.themeSource = dark ? 'dark' : 'light'
+    if (win && !win.isDestroyed() && /^#[0-9a-f]{6}$/i.test(background)) win.setBackgroundColor(background)
+  })
   ipcMain.on('shell:reveal', (_e, path: string) => void shell.openPath(path))
 
   ipcMain.handle('pty:create', (_e, opts: PtyCreateOptions) => ptys.create(opts))
   ipcMain.on('pty:write', (_e, id: string, data: string) => ptys.write(id, data))
   ipcMain.on('pty:resize', (_e, id: string, cols: number, rows: number) => ptys.resize(id, cols, rows))
   ipcMain.on('pty:kill', (_e, id: string) => ptys.kill(id))
+
+  ipcMain.handle('update:get', () => updater.get())
+  ipcMain.handle('update:check', () => updater.check())
+  ipcMain.on('update:install', () => void updater.install())
 
   ipcMain.on('env', (event) => {
     event.returnValue = { platform: process.platform, home: homedir() }
@@ -188,11 +203,13 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc()
     buildMenu()
     createWindow()
+    updater.start()
   })
 
   // One window, and its terminals are the whole point: closing it quits.
   app.on('window-all-closed', () => app.quit())
   app.on('before-quit', () => {
+    updater.stop()
     ptys.killAll()
     store.flush()
   })
