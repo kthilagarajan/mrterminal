@@ -26,7 +26,8 @@ const runtimes = new Map<string, Runtime>()
 const exitHandlers = new Map<string, (exitCode: number) => void>()
 let onCleanExit: (id: string) => void = () => {}
 
-const DEFAULT_FONT = '"SF Mono", Menlo, Monaco, "JetBrains Mono", "DejaVu Sans Mono", Consolas, monospace'
+// Geist Mono first; the system fonts behind it supply glyphs it lacks.
+const DEFAULT_FONT = '"Geist Mono Variable", "SF Mono", Menlo, Monaco, "DejaVu Sans Mono", Consolas, monospace'
 
 /** The user's font first, ours behind it in case it is missing a glyph (or missing). */
 export function fontStack(custom: string | null | undefined): string {
@@ -126,7 +127,14 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
     }
     fit.fit()
     if (!started) start(run)
+    else window.api.pty.resize(id, term.cols, term.rows)
   }
+  // A terminal in a background tab is never laid out. Its command still has
+  // to start (think of a restored session), so begin at the default size; it
+  // is resized the moment the tab is shown.
+  const startHidden = window.setTimeout(() => {
+    if (!started) start(run)
+  }, 500)
   const observer = new ResizeObserver(() => {
     cancelAnimationFrame(frame)
     frame = requestAnimationFrame(layout)
@@ -164,7 +172,6 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       if (opened) term.focus()
     },
     restart() {
-      if (!opened) return
       term.reset()
       start(true)
       term.focus()
@@ -172,6 +179,7 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
     dispose() {
       runtimes.delete(id)
       observer.disconnect()
+      window.clearTimeout(startHidden)
       cancelAnimationFrame(frame)
       window.api.pty.kill(id)
       term.dispose()
@@ -203,6 +211,10 @@ export function setFont(size: number, family: string | null): void {
     runtime.term.options.fontFamily = fontStack(family)
     runtime.refit()
   }
+}
+
+export function refitAll(): void {
+  for (const runtime of runtimes.values()) runtime.refit()
 }
 
 export function setTerminalTheme(theme: Theme): void {

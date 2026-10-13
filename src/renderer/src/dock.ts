@@ -10,6 +10,7 @@ import {
   type IWatermarkRenderer
 } from 'dockview'
 import type { Preset, TerminalDef } from '@shared/types'
+import { rememberClosed } from './closed'
 import { icons, type IconName } from './icons'
 import {
   addTerminalDef,
@@ -62,6 +63,10 @@ export function renameCommand(projectId: string, command: string, cwd: string, n
   for (const terminal of project.terminals) {
     if (same(terminal)) dock?.api.getPanel(terminal.id)?.api.setTitle(name)
   }
+}
+
+export function folderName(path: string): string {
+  return path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || path
 }
 
 /** Where a custom command runs: its own folder if it has one, else the project root. */
@@ -274,6 +279,10 @@ export class ProjectDock {
 
     this.api.onDidRemovePanel((panel) => {
       if (this.quiet) return
+      // Keep what is needed to reopen it (the saved layout still has its place).
+      const project = getProject(projectId)
+      const def = project?.terminals.find((t) => t.id === panel.id)
+      if (project && def) rememberClosed({ kind: 'terminal', projectId, def, layout: project.layout })
       disposeRuntime(panel.id)
       removeTerminalDef(projectId, panel.id)
     })
@@ -352,6 +361,15 @@ export class ProjectDock {
     this.focus(ids.get(preset.terminals[0]?.id))
   }
 
+  /** Bring back a closed terminal where it was, and run its command again. */
+  reopen(def: TerminalDef, layout: unknown | null): void {
+    addTerminalDef(this.projectId, def)
+    ensureRuntime(def, true)
+    this.applyLayout(layout)
+    this.saveLayout()
+    this.focus(def.id)
+  }
+
   private saveLayout(): void {
     const layout = this.api.panels.length > 0 ? this.api.toJSON() : null
     editProject(this.projectId, (p) => ({ ...p, layout }))
@@ -386,7 +404,8 @@ export class ProjectDock {
 
   openShell(placement: Placement = 'auto', group?: DockviewGroupPanel): void {
     const project = getProject(this.projectId)
-    if (project) this.open({ title: 'shell', cwd: project.path }, placement, group)
+    // Named after the folder it opens in; the user can rename the tab.
+    if (project) this.open({ title: folderName(project.path), cwd: project.path }, placement, group)
   }
 
   focus(id?: string): void {

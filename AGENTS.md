@@ -34,6 +34,7 @@ src/shared/     types.ts (config and IPC shapes), themes.ts. Imported by every s
 src/main/       Electron main process (Node)
   index.ts        window, menu, IPC handlers
   pty.ts          PtyManager: spawns shells, types commands, reports busy/idle
+  shellIntegration.ts  startup files that make zsh/bash emit OSC 133 marks
   scripts.ts      detectScripts(): package.json, pyproject.toml, Makefile, ...
   config.ts       ConfigStore: load, normalise, atomic write
   updater.ts      over-the-air updates from GitHub releases
@@ -43,8 +44,11 @@ src/renderer/   React UI
   actions.ts      user-level actions (boot, run a script, menu commands)
   terminals.ts    xterm.js runtimes, kept outside React and dockview
   dock.ts         one dockview per project: panels, tabs, presets, renaming
+  presetLayout.ts read / trim the dockview layout stored in a preset (tested)
+  PresetDialog.tsx create or edit a preset, with the layout preview
+  closed.ts       stack of closed tabs/projects behind "reopen closed"
   appearance.ts   applies theme and font everywhere
-  Sidebar.tsx     projects, presets, scripts, custom commands
+  Sidebar.tsx     project cards: running strip, presets, scripts, commands
 ```
 
 ## How the pieces fit
@@ -57,8 +61,15 @@ src/renderer/   React UI
   source of truth for what is open and is what gets restored. The dockview
   layout only says where they go and is reconciled against that list.
 - **Commands are typed into the shell**, not exec'd, so Ctrl-C returns to a
-  prompt. "Running" means the pty's foreground process is not a shell
-  (`pty.ts` polls once a second).
+  prompt.
+- **"Running" comes from the shell, not from process names.** zsh and bash are
+  started through `shellIntegration.ts`, whose startup files source the user's
+  own and add hooks that print OSC 133 marks (`C` command starts, `D`/`A`
+  prompt is back); `pty.ts` reads them from the output stream. Shells that
+  emit no marks fall back to "the foreground process is not a shell". Never
+  treat an open terminal as running: the UI promises that green means a
+  command is executing. `shellIntegration.test.ts` runs real shells; set
+  `MRT_TEST_ZSH` to test a zsh that is not in `/bin`.
 - **A command's identity is `command` + `cwd`.** That pair links a sidebar
   entry to its open terminal, a preset entry to a terminal it can reuse, and an
   alias (`project.aliases`, see `aliasKey`) to a detected script. Use

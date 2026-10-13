@@ -56,6 +56,10 @@ export interface Project {
    * whose script no longer exists is simply never looked up.
    */
   aliases: Record<string, string>
+  /** Shown open in the sidebar (scripts, presets, commands) or just its running terminals. */
+  expanded: boolean
+  /** The project's own colour (icon, card outline), one of PROJECT_COLORS. */
+  color: string
 }
 
 export interface WindowBounds {
@@ -142,7 +146,27 @@ export type MenuAction =
   | 'add-project'
   | 'toggle-sidebar'
   | 'settings'
+  | 'reopen-closed'
   | 'check-updates'
+
+/** Hues that stay readable on both dark and light themes. */
+export const PROJECT_COLORS = [
+  '#e0569b',
+  '#5b9cf5',
+  '#3fb98a',
+  '#e3a03a',
+  '#9d7bf0',
+  '#e8704f',
+  '#35b5c4',
+  '#c4b23a',
+  '#d66bd0',
+  '#7c8cf8'
+]
+
+/** The first colour no project is using yet, so neighbours look different. */
+export function nextProjectColor(used: string[]): string {
+  return PROJECT_COLORS.find((c) => !used.includes(c)) ?? PROJECT_COLORS[used.length % PROJECT_COLORS.length]
+}
 
 export const DEFAULT_SETTINGS: Settings = {
   restoreOnLaunch: 'ask',

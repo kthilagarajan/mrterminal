@@ -1,20 +1,115 @@
-import { useState, type FormEvent, type MouseEvent } from 'react'
-import type { Config, CustomCommand, DetectedScript, Preset, Project } from '@shared/types'
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type FormEvent, type MouseEvent } from 'react'
+import type React from 'react'
+import type { Config, CustomCommand, DetectedScript, Preset, Project, ScriptGroup } from '@shared/types'
+import {
+  deleteProject,
+  pickProject,
+  runScript,
+  scriptTitle,
+  selectProject,
+  showTerminal,
+  stopAll,
+  stopTerminal
+} from './actions'
 import { customCwd, getDock, renameCommand } from './dock'
-import { deleteProject, pickProject, runScript, scriptTitle, selectProject } from './actions'
 import { Icon } from './Icon'
-import { aliasKey, editProject, patchConfig, refreshScripts, setState, uid, useStore, type TermStatus } from './store'
+import { PresetDialog } from './PresetDialog'
+import {
+  aliasKey,
+  editProject,
+  getState,
+  moveProject,
+  patchConfig,
+  refreshScripts,
+  setState,
+  uid,
+  useStore,
+  type TermStatus
+} from './store'
 
+type Statuses = Record<string, TermStatus>
 type ScriptState = 'running' | 'open' | 'none'
 
-function scriptState(
-  project: Project,
-  statuses: Record<string, TermStatus>,
-  script: { command?: string; cwd: string }
-): ScriptState {
-  const terminal = project.terminals.find((t) => t.command === script.command && t.cwd === script.cwd)
+/** The open terminal that runs this command, if there is one. */
+function terminalFor(project: Project, script: { command?: string; cwd: string }) {
+  return project.terminals.find((t) => t.command === script.command && t.cwd === script.cwd)
+}
+
+function scriptState(project: Project, statuses: Statuses, script: { command?: string; cwd: string }): ScriptState {
+  const terminal = terminalFor(project, script)
   if (!terminal) return 'none'
   return statuses[terminal.id]?.busy ? 'running' : 'open'
+}
+
+function IconButton({
+  icon,
+  title,
+  className = '',
+  disabled,
+  onClick
+}: {
+  icon: Parameters<typeof Icon>[0]['name']
+  title: string
+  className?: string
+  disabled?: boolean
+  onClick: (event: MouseEvent) => void
+}) {
+  return (
+    <button
+      className={`icon-btn ${className}`}
+      title={title}
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick(event)
+      }}
+    >
+      <Icon name={icon} />
+    </button>
+  )
+}
+
+/**
+ * The button at the start of a row. It always shows what a click on it will
+ * do: start the thing, or, while it is running, stop it.
+ */
+function RunButton({ running, onRun, onStop }: { running: boolean; onRun: (event: MouseEvent) => void; onStop?: () => void }) {
+  return (
+    <button
+      className={running ? 'run-btn run-btn-running' : 'run-btn'}
+      title={running ? 'Stop (Ctrl-C)' : 'Run'}
+      onClick={(event) => {
+        event.stopPropagation()
+        if (running && onStop) onStop()
+        else onRun(event)
+      }}
+    >
+      <Icon name={running ? 'stop' : 'play'} />
+    </button>
+  )
+}
+
+/** A muted heading that folds the rows under it; `children` are its buttons on the right. */
+function GroupHead({
+  label,
+  open,
+  onToggle,
+  children
+}: {
+  label: React.ReactNode
+  open: boolean
+  onToggle: () => void
+  children?: React.ReactNode
+}) {
+  return (
+    <div className="group-head" role="button" onClick={onToggle}>
+      <span className={open ? 'chevron chevron-open' : 'chevron'}>
+        <Icon name="chevron" />
+      </span>
+      <span className="group-name">{label}</span>
+      {children}
+    </div>
+  )
 }
 
 function ScriptRow({
@@ -22,6 +117,7 @@ function ScriptRow({
   state,
   hint: customHint,
   onRun,
+  onStop,
   onEdit,
   onRemove
 }: {
@@ -30,6 +126,7 @@ function ScriptRow({
   /** Replaces the default "click to run" tooltip line. */
   hint?: string
   onRun: (event: MouseEvent) => void
+  onStop?: () => void
   onEdit?: () => void
   onRemove?: () => void
 }) {
@@ -39,38 +136,18 @@ function ScriptRow({
     `${state === 'running' ? 'Running. Click to show it' : state === 'open' ? 'Click to run it again' : 'Click to run'} · ${copy}`
   return (
     <div
-      className={`script script-${state}`}
+      className={`row script script-${state}`}
       role="button"
       title={`${script.command}\n${script.detail ?? ''}\n\n${hint}`}
       onClick={onRun}
     >
-      <span className="script-icon">{state === 'running' ? <span className="dot dot-busy" /> : <Icon name="play" />}</span>
-      <span className="script-name">{script.name}</span>
-      <span className="script-detail">{script.detail ?? script.command}</span>
-      {onEdit && (
-        <button
-          className="icon-btn script-remove"
-          title="Rename or edit"
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit()
-          }}
-        >
-          <Icon name="edit" />
-        </button>
-      )}
-      {onRemove && (
-        <button
-          className="icon-btn script-remove"
-          title="Delete this command"
-          onClick={(e) => {
-            e.stopPropagation()
-            onRemove()
-          }}
-        >
-          <Icon name="close" />
-        </button>
-      )}
+      <RunButton running={state === 'running'} onRun={onRun} onStop={onStop} />
+      <span className="row-name">{script.name}</span>
+      <span className="row-detail">{script.detail ?? script.command}</span>
+      <span className="row-actions">
+        {onEdit && <IconButton icon="edit" title="Rename or edit" onClick={onEdit} />}
+        {onRemove && <IconButton icon="close" title="Delete this command" onClick={onRemove} />}
+      </span>
     </div>
   )
 }
@@ -148,349 +225,404 @@ function CommandForm({ project, existing, onDone }: { project: Project; existing
   )
 }
 
-/** Name a new preset made from the open terminals, or rename / re-capture `existing`. */
-function PresetForm({ project, existing, onDone }: { project: Project; existing?: Preset; onDone: () => void }) {
-  const [name, setName] = useState(existing?.name ?? `Preset ${project.presets.length + 1}`)
-  const [recapture, setRecapture] = useState(false)
-  const count = project.terminals.length
-
-  const submit = (event: FormEvent): void => {
-    event.preventDefault()
-    const dock = getDock(project.id)
-    if (!name.trim() || !dock) return
-    const content = existing && !recapture ? existing : dock.snapshot()
-    const preset: Preset = {
-      id: existing?.id ?? uid(),
-      name: name.trim(),
-      terminals: content.terminals,
-      layout: content.layout
-    }
-    editProject(project.id, (p) => ({
-      ...p,
-      presets: existing ? p.presets.map((x) => (x.id === existing.id ? preset : x)) : [...p.presets, preset]
-    }))
-    onDone()
-  }
-
+/** What is running in this project right now, each with its own stop button. */
+function Running({ project, statuses }: { project: Project; statuses: Statuses }) {
+  const [open, setOpen] = useState(true)
+  const running = project.terminals.filter((t) => statuses[t.id]?.busy)
+  if (running.length === 0) return null
   return (
-    <form className="add-command" onSubmit={submit} onKeyDown={(e) => e.key === 'Escape' && onDone()}>
-      <input autoFocus placeholder="Preset name" value={name} onChange={(e) => setName(e.target.value)} onFocus={(e) => e.target.select()} />
-      {existing ? (
-        <label className="check small">
-          <input type="checkbox" checked={recapture} disabled={count === 0} onChange={(e) => setRecapture(e.target.checked)} />
-          Replace with the {count} terminal{count === 1 ? '' : 's'} open now
-        </label>
-      ) : (
-        <p className="empty">
-          Saves the {count} open terminal{count === 1 ? '' : 's'} and how they are arranged.
-        </p>
-      )}
-      <div className="add-command-actions">
-        <button type="button" className="btn" onClick={onDone}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
-          Save
-        </button>
-      </div>
-    </form>
-  )
-}
-
-type MapNode = { size: number } & ({ kind: 'leaf'; ids: string[] } | { kind: 'branch'; children: MapNode[] })
-
-/** Read the split tree out of a saved dockview layout; null if there is none. */
-function parseLayout(layout: unknown): { root: MapNode; horizontal: boolean; ratio: number } | null {
-  type Raw = { type?: string; size?: number; data?: unknown }
-  const node = (raw: Raw): MapNode | null => {
-    const size = typeof raw?.size === 'number' && raw.size > 0 ? raw.size : 1
-    if (raw?.type === 'leaf') {
-      const views = (raw.data as { views?: unknown })?.views
-      return Array.isArray(views) ? { kind: 'leaf', size, ids: views.filter((v) => typeof v === 'string') } : null
-    }
-    if (raw?.type === 'branch' && Array.isArray(raw.data)) {
-      const children = raw.data.map(node).filter((n): n is MapNode => n !== null)
-      return children.length > 0 ? { kind: 'branch', size, children } : null
-    }
-    return null
-  }
-  const grid = (layout as { grid?: { root?: Raw; orientation?: string; width?: number; height?: number } })?.grid
-  const root = grid?.root ? node(grid.root) : null
-  if (!grid || !root) return null
-  const ratio = grid.width && grid.height ? grid.width / grid.height : 1.6
-  return { root, horizontal: grid.orientation !== 'VERTICAL', ratio: Math.min(3, Math.max(1, ratio)) }
-}
-
-/** Pane ids in reading order: the order the terminals are numbered in. */
-function leafIds(node: MapNode): string[] {
-  return node.kind === 'leaf' ? node.ids : node.children.flatMap(leafIds)
-}
-
-function LayoutMap({ node, horizontal, label }: { node: MapNode; horizontal: boolean; label: Map<string, { n: number; title: string }> }) {
-  if (node.kind === 'branch') {
-    return (
-      <div className="map-branch" style={{ flexGrow: node.size, flexDirection: horizontal ? 'row' : 'column' }}>
-        {node.children.map((child, i) => (
-          <LayoutMap key={i} node={child} horizontal={!horizontal} label={label} />
-        ))}
-      </div>
-    )
-  }
-  const items = node.ids.map((id) => label.get(id)).filter((x) => x !== undefined)
-  return (
-    <div className="map-leaf" style={{ flexGrow: node.size }} title={items.length > 1 ? 'Tabs in the same pane' : undefined}>
-      {items.map((item) => (
-        <div className="map-item" key={item.n}>
-          <b className="num">{item.n}</b>
-          <span>{item.title}</span>
+    <div className="group running">
+      <GroupHead label="Running" open={open} onToggle={() => setOpen(!open)}>
+        <span className="group-count">{running.length}</span>
+      </GroupHead>
+      {open && (
+        <div className="running-list">
+          {running.map((terminal) => (
+            <div
+              key={terminal.id}
+              className="row script-running"
+              role="button"
+              title={`Running: ${terminal.command ?? statuses[terminal.id]?.process}\n${terminal.cwd}\n\nClick to show it`}
+              onClick={() => showTerminal(project.id, terminal.id)}
+            >
+              <RunButton running onRun={() => {}} onStop={() => stopTerminal(terminal.id)} />
+              <span className="row-name">{terminal.title}</span>
+              <span className="row-detail">{terminal.command ?? statuses[terminal.id]?.process}</span>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
-  )
-}
-
-/** What a preset will do: a miniature of the window, and the command behind each number. */
-function PresetDetails({ project, preset }: { project: Project; preset: Preset }) {
-  const layout = parseLayout(preset.layout)
-  const order = layout ? leafIds(layout.root) : []
-  const terminals = [...preset.terminals].sort((a, b) => {
-    const [ia, ib] = [order.indexOf(a.id), order.indexOf(b.id)]
-    return (ia < 0 ? Infinity : ia) - (ib < 0 ? Infinity : ib)
-  })
-  const label = new Map(terminals.map((t, i) => [t.id, { n: i + 1, title: t.title }]))
-
-  return (
-    <div className="preset-body">
-      {layout && (
-        <>
-          <div className="preset-caption">Opens in this layout</div>
-          <div className="map" style={{ aspectRatio: String(layout.ratio) }}>
-            <LayoutMap node={layout.root} horizontal={layout.horizontal} label={label} />
-          </div>
-        </>
       )}
-      <ol className="preset-list">
-        {terminals.map((t, i) => {
-          const folder = t.cwd.startsWith(`${project.path}/`) ? t.cwd.slice(project.path.length + 1) : ''
-          return (
-            <li key={t.id} title={`${t.command ?? 'Shell'}\n${t.cwd}`}>
-              <b className="num">{i + 1}</b>
-              <span>{t.title}</span>
-              <code>
-                {t.command ?? 'shell'}
-                {folder && ` · in ${folder}/`}
-              </code>
-            </li>
-          )
-        })}
-      </ol>
     </div>
   )
 }
 
-function Presets({ project, statuses }: { project: Project; statuses: Record<string, TermStatus> }) {
-  /** 'new', the id of the preset being edited, or null when the form is closed. */
-  const [editing, setEditing] = useState<string | null>(null)
+function Presets({ project, statuses }: { project: Project; statuses: Statuses }) {
+  /** 'new', the preset being edited, or null when the dialog is closed. */
+  const [editing, setEditing] = useState<Preset | 'new' | null>(null)
+  const [open, setOpen] = useState(true)
   const canSave = project.terminals.length > 0
 
   return (
     <div className="group">
-      <div className="group-head group-head-static">
-        <span className="group-name">Presets</span>
-        <button
-          className="icon-btn"
+      <GroupHead label="Presets" open={open} onToggle={() => setOpen(!open)}>
+        <IconButton
+          icon="plus"
           disabled={!canSave}
           title={canSave ? 'Save the open terminals as a preset' : 'Open some terminals first, then save them as a preset'}
           onClick={() => setEditing('new')}
-        >
-          <Icon name="plus" />
-        </button>
-      </div>
-      {project.presets.map((preset) => {
-        if (editing === preset.id) {
-          return <PresetForm key={preset.id} project={project} existing={preset} onDone={() => setEditing(null)} />
-        }
+        />
+      </GroupHead>
+      {open && project.presets.map((preset) => {
         // Running = everything in it is open and none of its commands has stopped.
         const states = preset.terminals.map((t) => ({ t, state: scriptState(project, statuses, t) }))
         const allOpen = states.every((s) => s.state !== 'none')
         const state: ScriptState =
-          allOpen && states.every((s) => !s.t.command || s.state === 'running')
+          allOpen && states.some((s) => s.t.command) && states.every((s) => !s.t.command || s.state === 'running')
             ? 'running'
             : states.some((s) => s.state !== 'none')
               ? 'open'
               : 'none'
         const count = preset.terminals.length
         return (
-          <div className="preset" key={preset.id}>
-            <ScriptRow
-              script={{ name: preset.name, command: preset.name, cwd: project.path, detail: `${count} terminal${count === 1 ? '' : 's'}` }}
-              state={state}
-              hint={
-                state === 'running'
-                  ? 'All running. Click to put them back in this layout'
-                  : state === 'open'
-                    ? 'Click to start the ones that are not running'
-                    : 'Click to open them all'
+          <ScriptRow
+            key={preset.id}
+            script={{
+              name: preset.name,
+              command: preset.terminals.map((t) => `${t.title}: ${t.command ?? 'terminal'}`).join('\n'),
+              cwd: project.path,
+              detail: `${count} terminal${count === 1 ? '' : 's'}`
+            }}
+            state={state}
+            hint={
+              state === 'running'
+                ? 'All running. Click to put them back in their layout'
+                : 'Click to open them all in their layout'
+            }
+            onRun={() => {
+              selectProject(project.id)
+              getDock(project.id)?.launch(preset)
+            }}
+            onStop={() => {
+              for (const { t, state: s } of states) {
+                const terminal = s === 'running' ? terminalFor(project, t) : undefined
+                if (terminal) stopTerminal(terminal.id)
               }
-              onRun={() => getDock(project.id)?.launch(preset)}
-              onEdit={() => setEditing(preset.id)}
-              onRemove={() => editProject(project.id, (p) => ({ ...p, presets: p.presets.filter((x) => x.id !== preset.id) }))}
-            />
-            <PresetDetails project={project} preset={preset} />
-          </div>
+            }}
+            onEdit={() => setEditing(preset)}
+          />
         )
       })}
-      {editing === 'new' && <PresetForm project={project} onDone={() => setEditing(null)} />}
-      {editing === null && project.presets.length === 0 && (
+      {open && project.presets.length === 0 && (
         <p className="empty">
-          {canSave
-            ? 'Press + to save the open terminals as a preset, then start them all with one click.'
-            : 'Open the terminals you want together, then save them here to start them all with one click.'}
+          {canSave ? 'Press + to save the open terminals and start them all with one click.' : 'Open the terminals you want together, then save them here.'}
         </p>
       )}
+      {editing && <PresetDialog project={project} existing={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
     </div>
   )
 }
 
-function Scripts({ project }: { project: Project }) {
-  const groups = useStore((s) => s.scripts[project.id])
-  const statuses = useStore((s) => s.statuses)
-  const [filter, setFilter] = useState('')
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  /** 'new', the id of the command being edited, or null when the form is closed. */
-  const [editing, setEditing] = useState<string | null>(null)
-  /** Alias key of the detected script being renamed. */
+function ScriptGroupView({
+  project,
+  group,
+  scripts,
+  statuses
+}: {
+  project: Project
+  group: ScriptGroup
+  scripts: DetectedScript[]
+  statuses: Statuses
+}) {
+  const [collapsed, setCollapsed] = useState(false)
+  /** Alias key of the script being renamed. */
   const [renaming, setRenaming] = useState<string | null>(null)
-
-  const query = filter.trim().toLowerCase()
-  const matches = (s: DetectedScript): boolean =>
-    !query ||
-    [s.name, s.command, project.aliases[aliasKey(project, s.command, s.cwd)] ?? ''].some((text) =>
-      text.toLowerCase().includes(query)
-    )
-  const total = (groups ?? []).reduce((n, g) => n + g.scripts.length, 0)
-
-  const custom = project.customCommands
-    .map((c) => ({
-      entry: c,
-      script: { name: c.name, command: c.command, cwd: customCwd(project, c.cwd), detail: c.command }
-    }))
-    .filter((c) => matches(c.script))
+  const open = !collapsed
 
   return (
-    <section className="scripts">
-      <div className="section-head">
-        <span>Scripts</span>
-        <button className="icon-btn" title="Re-read scripts from disk" onClick={() => void refreshScripts(project.id)}>
-          <Icon name="refresh" />
-        </button>
-      </div>
-      {total > 8 && (
-        <input
-          className="filter"
-          placeholder="Filter scripts"
-          spellCheck={false}
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      )}
-      <div className="scripts-list">
-        {!query && <Presets project={project} statuses={statuses} />}
-        {groups?.map((group) => {
-          const key = `${group.relDir}|${group.source}|${group.runner}`
-          const scripts = group.scripts.filter(matches)
-          if (scripts.length === 0) return null
-          const open = query !== '' || !collapsed[key]
-          return (
-            <div className="group" key={key}>
-              <button className="group-head" onClick={() => setCollapsed({ ...collapsed, [key]: open })}>
-                <span className={open ? 'chevron chevron-open' : 'chevron'}>
-                  <Icon name="chevron" />
-                </span>
-                <span className="group-name">{group.relDir ? `${group.relDir}/` : ''}{group.source}</span>
-                <span className="group-runner">{group.runner}</span>
-              </button>
-              {open &&
-                scripts.map((script) => {
-                  const key = aliasKey(project, script.command, script.cwd)
-                  const alias = project.aliases[key]
-                  if (renaming === key) {
-                    return (
-                      <RenameForm
-                        key={key}
-                        name={alias ?? script.name}
-                        original={script.name}
-                        onDone={(name) => {
-                          setRenaming(null)
-                          if (name === undefined) return
-                          // Clearing the field (or typing the original) drops the alias.
-                          if (!name || name === script.name) {
-                            renameCommand(project.id, script.command, script.cwd, scriptTitle(group, script), false)
-                          } else renameCommand(project.id, script.command, script.cwd, name)
-                        }}
-                      />
-                    )
-                  }
-                  return (
-                    <ScriptRow
-                      key={key}
-                      script={alias ? { ...script, name: alias, detail: script.command } : script}
-                      state={scriptState(project, statuses, script)}
-                      onRun={(e) => runScript(project, group, script, e.altKey)}
-                      onEdit={() => setRenaming(key)}
-                    />
-                  )
-                })}
-            </div>
-          )
-        })}
-        {groups && total === 0 && (
-          <p className="empty">No scripts found in this folder. Add your own commands below.</p>
-        )}
-
-
-        <div className="group">
-          <div className="group-head group-head-static">
-            <span className="group-name">Custom commands</span>
-            <button className="icon-btn" title="Add a command to this project" onClick={() => setEditing('new')}>
-              <Icon name="plus" />
-            </button>
-          </div>
-          {custom.map(({ entry, script }) =>
-            editing === entry.id ? (
-              <CommandForm key={entry.id} project={project} existing={entry} onDone={() => setEditing(null)} />
-            ) : (
-              <ScriptRow
-                key={entry.id}
-                script={script}
-                state={scriptState(project, statuses, script)}
-                onRun={(e) => runScript(project, null, script, e.altKey)}
-                onEdit={() => setEditing(entry.id)}
-                onRemove={() =>
-                  editProject(project.id, (p) => ({
-                    ...p,
-                    customCommands: p.customCommands.filter((c) => c.id !== entry.id)
-                  }))
-                }
+    <div className="group">
+      <GroupHead
+        label={`${group.relDir ? `${group.relDir}/` : ''}${group.source}`}
+        open={open}
+        onToggle={() => setCollapsed(open)}
+      >
+        <span className="group-runner">{group.runner}</span>
+      </GroupHead>
+      {open &&
+        scripts.map((script) => {
+          const key = aliasKey(project, script.command, script.cwd)
+          const alias = project.aliases[key]
+          if (renaming === key) {
+            return (
+              <RenameForm
+                key={key}
+                name={alias ?? script.name}
+                original={script.name}
+                onDone={(name) => {
+                  setRenaming(null)
+                  if (name === undefined) return
+                  // Clearing the field (or typing the original) drops the alias.
+                  if (!name || name === script.name) {
+                    renameCommand(project.id, script.command, script.cwd, scriptTitle(group, script), false)
+                  } else renameCommand(project.id, script.command, script.cwd, name)
+                }}
               />
             )
-          )}
-          {editing === 'new' && <CommandForm project={project} onDone={() => setEditing(null)} />}
-          {editing === null && project.customCommands.length === 0 && (
-            <button className="empty empty-btn" onClick={() => setEditing('new')}>
-              Add your own command for this project
-            </button>
-          )}
-        </div>
+          }
+          const terminal = terminalFor(project, script)
+          return (
+            <ScriptRow
+              key={key}
+              script={alias ? { ...script, name: alias, detail: script.command } : script}
+              state={scriptState(project, statuses, script)}
+              onRun={(e) => {
+                selectProject(project.id)
+                runScript(project, group, script, e.altKey)
+              }}
+              onStop={terminal && (() => stopTerminal(terminal.id))}
+              onEdit={() => setRenaming(key)}
+            />
+          )
+        })}
+    </div>
+  )
+}
+
+/** Everything a project can run: presets, detected scripts, the user's own commands. */
+function ProjectBody({ project, statuses }: { project: Project; statuses: Statuses }) {
+  const groups = useStore((s) => s.scripts[project.id])
+  /** 'new', the id of the command being edited, or null when the form is closed. */
+  const [editing, setEditing] = useState<string | null>(null)
+  const [customOpen, setCustomOpen] = useState(true)
+
+  return (
+    <>
+      <Presets project={project} statuses={statuses} />
+      {groups?.map((group) => (
+        <ScriptGroupView
+          key={`${group.relDir}|${group.source}|${group.runner}`}
+          project={project}
+          group={group}
+          scripts={group.scripts}
+          statuses={statuses}
+        />
+      ))}
+      {groups && groups.length === 0 && <p className="empty">No scripts found in this folder.</p>}
+
+      <div className="group">
+        <GroupHead label="Custom commands" open={customOpen} onToggle={() => setCustomOpen(!customOpen)}>
+          <IconButton
+            icon="plus"
+            title="Add a command to this project"
+            onClick={() => {
+              setCustomOpen(true)
+              setEditing('new')
+            }}
+          />
+        </GroupHead>
+        {customOpen && project.customCommands.map((entry) => {
+          if (editing === entry.id) {
+            return <CommandForm key={entry.id} project={project} existing={entry} onDone={() => setEditing(null)} />
+          }
+          const script = { name: entry.name, command: entry.command, cwd: customCwd(project, entry.cwd), detail: entry.command }
+          const terminal = terminalFor(project, script)
+          return (
+            <ScriptRow
+              key={entry.id}
+              script={script}
+              state={scriptState(project, statuses, script)}
+              onRun={(e) => {
+                selectProject(project.id)
+                runScript(project, null, script, e.altKey)
+              }}
+              onStop={terminal && (() => stopTerminal(terminal.id))}
+              onEdit={() => setEditing(entry.id)}
+              onRemove={() =>
+                editProject(project.id, (p) => ({
+                  ...p,
+                  customCommands: p.customCommands.filter((c) => c.id !== entry.id)
+                }))
+              }
+            />
+          )
+        })}
+        {editing === 'new' && <CommandForm project={project} onDone={() => setEditing(null)} />}
+        {customOpen && editing === null && project.customCommands.length === 0 && (
+          <button className="empty empty-btn" onClick={() => setEditing('new')}>
+            Add your own command for this project
+          </button>
+        )}
       </div>
-    </section>
+    </>
+  )
+}
+
+/** The "..." menu of a project. Closes on any click outside it. */
+function ProjectMenu({ project, index, count, onClose }: { project: Project; index: number; count: number; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const close = (event: globalThis.MouseEvent): void => {
+      if (!ref.current?.contains(event.target as Node)) onClose()
+    }
+    const key = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('mousedown', close, true)
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('mousedown', close, true)
+      window.removeEventListener('keydown', key)
+    }
+  }, [onClose])
+
+  const item = (label: string, action: () => void, options: { disabled?: boolean; danger?: boolean } = {}) => (
+    <button
+      className={options.danger ? 'menu-item menu-danger' : 'menu-item'}
+      disabled={options.disabled}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClose()
+        action()
+      }}
+    >
+      {label}
+    </button>
+  )
+
+  return (
+    <div className="menu" ref={ref} onClick={(e) => e.stopPropagation()}>
+      {item('Move up', () => moveProject(project.id, index - 1), { disabled: index === 0 })}
+      {item('Move down', () => moveProject(project.id, index + 1), { disabled: index === count - 1 })}
+      {item('Open folder', () => window.api.reveal(project.path))}
+      <div className="menu-sep" />
+      {item('Remove project…', () => deleteProject(project), { danger: true })}
+    </div>
+  )
+}
+
+/** `~/code` for `/Users/me/code/webportal`: the name already says the rest. */
+function parentFolder(path: string): string {
+  const parent = path.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '') || '/'
+  return parent.startsWith(window.api.home) ? `~${parent.slice(window.api.home.length)}` : parent
+}
+
+const DRAG_TYPE = 'application/x-mrterminal-project'
+
+function ProjectNode({
+  project,
+  index,
+  count,
+  active,
+  statuses
+}: {
+  project: Project
+  index: number
+  count: number
+  active: boolean
+  statuses: Statuses
+}) {
+  const [menu, setMenu] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  /** Where a dragged project would land relative to this one. */
+  const [drop, setDrop] = useState<'before' | 'after' | null>(null)
+  const running = project.terminals.filter((t) => statuses[t.id]?.busy).length
+  const expanded = project.expanded
+
+  const toggle = (): void => editProject(project.id, (p) => ({ ...p, expanded: !p.expanded }))
+  const refresh = (): void => {
+    setRefreshing(true)
+    void refreshScripts(project.id).finally(() => window.setTimeout(() => setRefreshing(false), 400))
+  }
+
+  const side = (event: DragEvent): 'before' | 'after' => {
+    const box = event.currentTarget.getBoundingClientRect()
+    return event.clientY < box.top + box.height / 2 ? 'before' : 'after'
+  }
+  const dragOver = (event: DragEvent): void => {
+    if (!event.dataTransfer.types.includes(DRAG_TYPE)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setDrop(side(event))
+  }
+  const dropped = (event: DragEvent): void => {
+    const id = event.dataTransfer.getData(DRAG_TYPE)
+    setDrop(null)
+    if (!id || id === project.id) return
+    event.preventDefault()
+    // The dragged project leaves a gap first, which shifts everything after it.
+    const from = (getState().config?.projects ?? []).findIndex((p) => p.id === id)
+    const target = side(event) === 'before' ? index : index + 1
+    moveProject(id, from < target ? target - 1 : target)
+  }
+
+  const classes = ['project', active && 'project-active', expanded && 'project-open', dragging && 'project-dragging', drop && `project-drop-${drop}`]
+
+  return (
+    // The whole card is the drop target, so the line shows between cards
+    // wherever the pointer is over one, not only over its title.
+    <div
+      className={classes.filter(Boolean).join(' ')}
+      style={{ '--project': project.color } as CSSProperties}
+      onDragOver={dragOver}
+      onDragEnter={dragOver}
+      onDragLeave={(event) => {
+        // Moving between elements inside the card is not leaving it.
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDrop(null)
+      }}
+      onDrop={dropped}
+    >
+      <div
+        className="project-head"
+        role="button"
+        draggable
+        title={`${project.path}\n\nClick to ${active ? (expanded ? 'collapse' : 'expand') : 'show'} · drag to reorder`}
+        // Click shows the project; clicking the one already shown folds or unfolds it.
+        onClick={() => {
+          if (!active) selectProject(project.id)
+          if (active || !expanded) toggle()
+        }}
+        onDragStart={(event) => {
+          event.dataTransfer.setData(DRAG_TYPE, project.id)
+          event.dataTransfer.effectAllowed = 'move'
+          setDragging(true)
+        }}
+        onDragEnd={() => setDragging(false)}
+      >
+        <span className="project-tile">{project.name.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 1) || '·'}</span>
+        <span className="project-text">
+          <span className="project-name">{project.name}</span>
+          <span className="project-path">{parentFolder(project.path)}</span>
+        </span>
+        {running > 0 && (
+          <span className="project-running" title={`${running} running`}>
+            <span className="dot dot-busy" />
+            {running}
+          </span>
+        )}
+        <span className={menu ? 'project-actions project-actions-open' : 'project-actions'}>
+          {running > 0 && <IconButton icon="stop" title={`Stop all ${running} running`} onClick={() => stopAll(project)} />}
+          <IconButton icon="refresh" className={refreshing ? 'spin' : ''} title="Re-read this project's scripts" onClick={refresh} />
+          <IconButton icon="more" title="More" onClick={() => setMenu(!menu)} />
+        </span>
+        <span className={expanded ? 'project-fold project-fold-open' : 'project-fold'}>
+          <Icon name="chevron" />
+        </span>
+        {menu && <ProjectMenu project={project} index={index} count={count} onClose={() => setMenu(false)} />}
+      </div>
+      <Running project={project} statuses={statuses} />
+      {expanded && (
+        <div className="project-body">
+          <ProjectBody project={project} statuses={statuses} />
+        </div>
+      )}
+    </div>
   )
 }
 
 function startResize(event: MouseEvent, startWidth: number): void {
   const startX = event.clientX
   const move = (e: globalThis.MouseEvent): void => {
-    patchConfig({ sidebarWidth: Math.min(520, Math.max(200, startWidth + e.clientX - startX)) })
+    patchConfig({ sidebarWidth: Math.min(520, Math.max(220, startWidth + e.clientX - startX)) })
   }
   const up = (): void => {
     window.removeEventListener('mousemove', move)
@@ -502,67 +634,33 @@ function startResize(event: MouseEvent, startWidth: number): void {
   window.addEventListener('mouseup', up)
 }
 
-/** `~/code` for `/Users/me/code/webportal`: the name already says the rest. */
-function parentFolder(path: string): string {
-  const parent = path.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '') || '/'
-  return parent.startsWith(window.api.home) ? `~${parent.slice(window.api.home.length)}` : parent
-}
-
 export function Sidebar({ config }: { config: Config }) {
   const statuses = useStore((s) => s.statuses)
-  const active = config.projects.find((p) => p.id === config.activeProjectId)
 
   return (
     <aside className="sidebar" style={{ width: config.sidebarWidth }}>
-      <div className="sidebar-drag">
-        <span className="brand">MrTerminal</span>
+      <header className="sidebar-head">
+        <span className="brand">
+          <span className="brand-mark">
+            <Icon name="terminal" />
+          </span>
+          MrTerminal
+        </span>
+        <IconButton icon="plus" title="Add a project folder" onClick={() => void pickProject()} />
+      </header>
+      <div className="tree">
+        {config.projects.map((project, index) => (
+          <ProjectNode
+            key={project.id}
+            project={project}
+            index={index}
+            count={config.projects.length}
+            active={project.id === config.activeProjectId}
+            statuses={statuses}
+          />
+        ))}
+        {config.projects.length === 0 && <p className="empty">No projects yet. Press + to add a folder.</p>}
       </div>
-      <div className="section-head">
-        <span>Projects</span>
-        <button className="icon-btn" title="Add a project folder" onClick={() => void pickProject()}>
-          <Icon name="plus" />
-        </button>
-      </div>
-      <div className="projects">
-        {config.projects.map((project) => {
-          const running = project.terminals.filter((t) => statuses[t.id]?.busy).length
-          return (
-            <div
-              key={project.id}
-              role="button"
-              className={project.id === active?.id ? 'project project-active' : 'project'}
-              title={project.path}
-              onClick={() => selectProject(project.id)}
-            >
-              <span className="project-tile">{project.name.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 1) || '·'}</span>
-              <span className="project-text">
-                <span className="project-name">{project.name}</span>
-                <span className="project-path">{parentFolder(project.path)}</span>
-              </span>
-              {running > 0 && (
-                <span className="project-running" title={`${running} running`}>
-                  <span className="dot dot-busy" />
-                  {running}
-                </span>
-              )}
-              <button
-                className="icon-btn project-remove"
-                title="Remove project"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  deleteProject(project)
-                }}
-              >
-                <Icon name="close" />
-              </button>
-            </div>
-          )
-        })}
-        {config.projects.length === 0 && <p className="empty">No projects yet.</p>}
-      </div>
-
-      {active ? <Scripts key={active.id} project={active} /> : <div className="scripts" />}
-
       <button className="sidebar-foot" onClick={() => setState({ settingsOpen: true })}>
         <Icon name="gear" /> Settings
       </button>

@@ -122,6 +122,7 @@ function buildMenu(): void {
         item('Restart Terminal', key('Cmd+Shift+R', 'Ctrl+Shift+R'), 'restart-terminal'),
         item('Clear', key('Cmd+K', 'Ctrl+Shift+K'), 'clear-terminal'),
         item('Close Terminal', key('Cmd+W', 'Ctrl+Shift+W'), 'close-terminal'),
+        item('Reopen Closed Tab or Project', key('Cmd+Shift+T', 'Ctrl+Shift+Z'), 'reopen-closed'),
         { type: 'separator' },
         item('Add Project…', 'CmdOrCtrl+O', 'add-project'),
         ...(isMac ? [] : [{ type: 'separator' } as const, item('Settings…', 'Ctrl+,', 'settings'), { role: 'quit' } as const])

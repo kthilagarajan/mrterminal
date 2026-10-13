@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import {
   DEFAULT_SETTINGS,
   defaultConfig,
+  nextProjectColor,
   type Config,
   type Project,
   type WindowBounds
@@ -20,9 +21,14 @@ function normalizeProject(raw: Partial<Project>): Project | null {
     name: typeof raw.name === 'string' ? raw.name : raw.path,
     path: raw.path,
     terminals: Array.isArray(raw.terminals)
-      ? raw.terminals.filter((t) => t && typeof t.id === 'string' && typeof t.cwd === 'string')
+      ? raw.terminals
+          .filter((t) => t && typeof t.id === 'string' && typeof t.cwd === 'string')
+          // Plain shells used to be titled "shell"; they are named after their folder now.
+          .map((t) => (!t.command && t.title === 'shell' ? { ...t, title: basename(t.cwd) || t.title } : t))
       : [],
     layout: raw.layout ?? null,
+    expanded: raw.expanded !== false,
+    color: typeof raw.color === 'string' && /^#[0-9a-f]{6}$/i.test(raw.color) ? raw.color : '',
     customCommands: Array.isArray(raw.customCommands)
       ? raw.customCommands.filter((c) => c && typeof c.id === 'string' && typeof c.command === 'string')
       : [],
@@ -41,6 +47,10 @@ export function normalizeConfig(raw: unknown): Config {
   const projects = Array.isArray(r.projects)
     ? r.projects.map(normalizeProject).filter((p): p is Project => p !== null)
     : []
+  // Projects saved before colours existed get one each, all different.
+  for (const project of projects) {
+    if (!project.color) project.color = nextProjectColor(projects.map((p) => p.color))
+  }
   return {
     version: 1,
     settings: { ...DEFAULT_SETTINGS, ...(r.settings ?? {}) },
@@ -65,7 +75,11 @@ export class ConfigStore {
   private read(): Config {
     if (!existsSync(configPath)) return defaultConfig()
     try {
-      return normalizeConfig(JSON.parse(readFileSync(configPath, 'utf8')))
+      const config = normalizeConfig(JSON.parse(readFileSync(configPath, 'utf8')))
+      // A project whose folder is gone (deleted, renamed) has nothing to run.
+      const projects = config.projects.filter((p) => existsSync(p.path))
+      if (projects.length === config.projects.length) return config
+      return normalizeConfig({ ...config, projects })
     } catch (err) {
       // Keep the unreadable file around rather than silently overwriting it.
       try {

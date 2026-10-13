@@ -1,5 +1,6 @@
 import type { Config, DetectedScript, MenuAction, Project, RestoreMode, ScriptGroup } from '@shared/types'
 import { applyAppearance } from './appearance'
+import { rememberClosed, takeClosed } from './closed'
 import { findDock, getDock } from './dock'
 import {
   addProject,
@@ -9,6 +10,7 @@ import {
   patchConfig,
   refreshScripts,
   removeProject,
+  restoreProject,
   setState
 } from './store'
 import { disposeRuntime, getRuntime, setCleanExitHandler } from './terminals'
@@ -53,12 +55,60 @@ export function selectProject(id: string): void {
   patchConfig({ activeProjectId: id })
 }
 
+/** Interrupt whatever is running in a terminal, as Ctrl-C would. */
+export function stopTerminal(id: string): void {
+  window.api.pty.write(id, '\x03')
+}
+
+export function stopAll(project: Project): void {
+  for (const terminal of project.terminals) {
+    if (getState().statuses[terminal.id]?.busy) stopTerminal(terminal.id)
+  }
+}
+
+/** Show a terminal: switch to its project and focus its tab. */
+export function showTerminal(projectId: string, id: string): void {
+  selectProject(projectId)
+  getDock(projectId)?.focus(id)
+}
+
 export function deleteProject(project: Project): void {
   const running = project.terminals.filter((t) => getState().statuses[t.id]?.busy).length
-  const detail = running > 0 ? `\n\n${running} running process${running > 1 ? 'es' : ''} will be stopped.` : ''
-  if (!window.confirm(`Remove "${project.name}" from MrTerminal?${detail}\n\nThe folder itself is not touched.`)) return
+  const lost = [
+    project.presets.length > 0 && `${project.presets.length} preset${project.presets.length > 1 ? 's' : ''}`,
+    project.customCommands.length > 0 &&
+      `${project.customCommands.length} custom command${project.customCommands.length > 1 ? 's' : ''}`,
+    Object.keys(project.aliases).length > 0 && 'renamed scripts',
+    'its terminal layout'
+  ].filter(Boolean)
+  const message = [
+    `Remove "${project.name}" from MrTerminal?`,
+    `Its settings here will be lost: ${lost.join(', ')}.`,
+    running > 0 ? `${running} running process${running > 1 ? 'es' : ''} will be stopped.` : '',
+    'The folder and its files are not touched.'
+  ]
+  if (!window.confirm(message.filter(Boolean).join('\n\n'))) return
+  const index = getState().config?.projects.findIndex((p) => p.id === project.id) ?? 0
+  rememberClosed({ kind: 'project', project, index })
   for (const terminal of project.terminals) disposeRuntime(terminal.id)
   removeProject(project.id)
+}
+
+/** Undo the last close: a terminal tab or a removed project (like ⇧⌘T in a browser). */
+export function reopenClosed(): void {
+  for (let item = takeClosed(); item; item = takeClosed()) {
+    if (item.kind === 'project') {
+      if (getProject(item.project.id)) continue
+      restoreProject(item.project, item.index)
+      return
+    }
+    const dock = getDock(item.projectId)
+    // Its project may have been removed since; then try the one before.
+    if (!dock || getProject(item.projectId)?.terminals.some((t) => t.id === item.def.id)) continue
+    selectProject(item.projectId)
+    dock.reopen(item.def, item.layout)
+    return
+  }
 }
 
 /** Shown on a tab when the script lives in a nested package: `web:dev`. */
@@ -107,6 +157,8 @@ export function handleMenu(action: MenuAction): void {
       return void pickProject()
     case 'toggle-sidebar':
       return patchConfig({ sidebarHidden: !getState().config?.sidebarHidden })
+    case 'reopen-closed':
+      return reopenClosed()
     case 'settings':
       return setState({ settingsOpen: true })
     case 'check-updates':

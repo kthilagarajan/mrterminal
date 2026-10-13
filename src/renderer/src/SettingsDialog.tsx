@@ -12,6 +12,7 @@ const RESTORE_OPTIONS: [RestoreMode, string][] = [
 
 /** Offered as suggestions; any font installed on the machine can be typed in. */
 const FONT_SUGGESTIONS = [
+  'Geist Mono',
   'SF Mono',
   'Menlo',
   'Monaco',
@@ -21,7 +22,6 @@ const FONT_SUGGESTIONS = [
   'Source Code Pro',
   'Hack',
   'IBM Plex Mono',
-  'Geist Mono',
   'MesloLGS NF',
   'JetBrainsMono Nerd Font',
   'FiraCode Nerd Font',
@@ -69,7 +69,7 @@ export function SettingsDialog({ settings }: { settings: Settings }) {
               type="text"
               list="font-suggestions"
               spellCheck={false}
-              placeholder="Default (SF Mono, Menlo)"
+              placeholder="Default (Geist Mono)"
               value={settings.fontFamily ?? ''}
               onChange={(e) => appearance({ fontFamily: e.target.value || null })}
             />

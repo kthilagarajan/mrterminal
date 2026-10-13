@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { Config, Project, ScriptGroup, Settings, TerminalDef, UpdateState } from '@shared/types'
+import { nextProjectColor, type Config, type Project, type ScriptGroup, type Settings, type TerminalDef, type UpdateState } from '@shared/types'
 
 export interface TermStatus {
   busy: boolean
@@ -18,6 +18,8 @@ export interface State {
   scripts: Record<string, ScriptGroup[] | undefined>
   settingsOpen: boolean
   update: UpdateState | null
+  /** How many closed tabs/projects can still be reopened. */
+  closedCount: number
 }
 
 let state: State = {
@@ -27,7 +29,8 @@ let state: State = {
   statuses: {},
   scripts: {},
   settingsOpen: false,
-  update: null
+  update: null,
+  closedCount: 0
 }
 
 const listeners = new Set<() => void>()
@@ -94,7 +97,7 @@ export function addProject(path: string, name: string): string {
     patchConfig({ activeProjectId: existing.id })
     return existing.id
   }
-  const project: Project = { id: uid(), name, path, terminals: [], layout: null, customCommands: [], presets: [], aliases: {} }
+  const project: Project = { id: uid(), name, path, terminals: [], layout: null, customCommands: [], presets: [], aliases: {}, expanded: true, color: nextProjectColor((state.config?.projects ?? []).map((p) => p.color)) }
   editConfig((c) => ({ ...c, projects: [...c.projects, project], activeProjectId: project.id }))
   return project.id
 }
@@ -107,6 +110,27 @@ export function removeProject(id: string): void {
       projects,
       activeProjectId: c.activeProjectId === id ? (projects[0]?.id ?? null) : c.activeProjectId
     }
+  })
+}
+
+/** Move a project so that it sits at `index` in the list. */
+export function moveProject(id: string, index: number): void {
+  editConfig((c) => {
+    const from = c.projects.findIndex((p) => p.id === id)
+    if (from < 0) return c
+    const projects = [...c.projects]
+    const [project] = projects.splice(from, 1)
+    projects.splice(Math.max(0, Math.min(projects.length, index)), 0, project)
+    return { ...c, projects }
+  })
+}
+
+/** Put a removed project back where it was and show it. */
+export function restoreProject(project: Project, index: number): void {
+  editConfig((c) => {
+    const projects = [...c.projects]
+    projects.splice(Math.min(index, projects.length), 0, project)
+    return { ...c, projects, activeProjectId: project.id }
   })
 }
 

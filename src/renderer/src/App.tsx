@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { applyRestore, boot, handleMenu, pickProject } from './actions'
+import { applyRestore, boot, handleMenu, pickProject, reopenClosed } from './actions'
 import { getDock, ProjectDock } from './dock'
 import { Icon } from './Icon'
 import { RestorePrompt } from './RestorePrompt'
@@ -44,6 +44,7 @@ export function App() {
   const config = useStore((s) => s.config)
   const ready = useStore((s) => s.ready)
   const settingsOpen = useStore((s) => s.settingsOpen)
+  const closedCount = useStore((s) => s.closedCount)
   const activeId = config?.activeProjectId ?? null
 
   useEffect(() => {
@@ -52,14 +53,17 @@ export function App() {
   }, [])
 
   // Scripts change on disk (new branch, edited package.json); re-read them
-  // when the project is shown and whenever the window regains focus.
+  // for every project at start and whenever the window regains focus.
+  const projectIds = config?.projects.map((p) => p.id).join(',') ?? ''
   useEffect(() => {
-    if (!ready || !activeId) return
-    const refresh = (): void => void refreshScripts(activeId)
+    if (!ready) return
+    const refresh = (): void => {
+      for (const id of projectIds.split(',').filter(Boolean)) void refreshScripts(id)
+    }
     refresh()
     window.addEventListener('focus', refresh)
     return () => window.removeEventListener('focus', refresh)
-  }, [ready, activeId])
+  }, [ready, projectIds])
 
   if (!config) return null
   if (!ready) return <RestorePrompt config={config} onChoose={applyRestore} />
@@ -78,6 +82,15 @@ export function App() {
           >
             <Icon name="sidebar" />
           </button>
+          {closedCount > 0 && (
+            <button
+              className="icon-btn"
+              title={`Reopen the tab or project you just closed (${window.api.platform === 'darwin' ? '⇧⌘T' : 'Ctrl+Shift+Z'})`}
+              onClick={reopenClosed}
+            >
+              <Icon name="undo" />
+            </button>
+          )}
           {active && (
             <>
               <span className="topbar-name">{active.name}</span>

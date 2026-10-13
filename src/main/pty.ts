@@ -3,12 +3,17 @@ import { homedir } from 'node:os'
 import { basename } from 'node:path'
 import * as pty from 'node-pty'
 import type { PtyCreateOptions, PtyExit, PtyStatus } from '@shared/types'
+import { lastMark, shellLaunch } from './shellIntegration'
 
 interface Session {
   proc: pty.IPty
   shellName: string
   busy: boolean
   process: string
+  /** The shell reports command start/end itself; trust that over process names. */
+  integrated: boolean
+  /** End of the previous chunk, in case a mark was split across two. */
+  tail: string
   /** Pending "type the command once the prompt is up" timers. */
   timers: NodeJS.Timeout[]
 }
@@ -74,18 +79,18 @@ export class PtyManager {
 
     const shell = this.getShell() || defaultShell()
     const cwdOk = isDir(opts.cwd)
-    const isWindows = process.platform === 'win32'
 
     let proc: pty.IPty
     try {
       // A login shell, so PATH (nvm, Homebrew, pyenv...) matches the user's
       // normal terminal even when the app was launched from Finder.
-      proc = pty.spawn(shell, isWindows ? [] : ['-l'], {
+      const launch = shellLaunch(shell, shellEnv())
+      proc = pty.spawn(shell, launch.args, {
         name: 'xterm-256color',
         cols: Math.max(2, opts.cols),
         rows: Math.max(1, opts.rows),
         cwd: cwdOk ? opts.cwd : homedir(),
-        env: shellEnv()
+        env: launch.env
       })
     } catch (err) {
       return { ok: false, error: `Could not start ${shell}: ${(err as Error).message}` }
@@ -96,6 +101,8 @@ export class PtyManager {
       shellName: basename(shell).replace(/\.exe$/i, ''),
       busy: false,
       process: '',
+      integrated: false,
+      tail: '',
       timers: []
     }
     this.sessions.set(opts.id, session)
@@ -111,6 +118,12 @@ export class PtyManager {
     proc.onData((data) => {
       if (this.sessions.get(opts.id) !== session) return
       this.events.data(opts.id, data)
+      const mark = lastMark(session.tail + data)
+      session.tail = data.slice(-12)
+      if (mark) {
+        session.integrated = true
+        this.setStatus(opts.id, session, mark === 'C', session.process)
+      }
       if (!sawOutput) {
         sawOutput = true
         onFirstOutput()
@@ -179,7 +192,17 @@ export class PtyManager {
     session.timers = []
   }
 
-  /** Report whether something other than the shell owns each terminal. */
+  private setStatus(id: string, session: Session, busy: boolean, process: string): void {
+    if (busy === session.busy && process === session.process) return
+    session.busy = busy
+    session.process = process
+    this.events.status({ id, busy, process })
+  }
+
+  /**
+   * Keep the foreground process name current (shown in tooltips). Shells
+   * without integration are also judged busy or idle by that name.
+   */
   private startPolling(): void {
     if (this.poll || process.platform === 'win32') return
     this.poll = setInterval(() => {
@@ -195,12 +218,8 @@ export class PtyManager {
         } catch {
           continue
         }
-        const busy = name !== '' && name !== session.shellName && !SHELLS.has(name)
-        if (busy !== session.busy || name !== session.process) {
-          session.busy = busy
-          session.process = name
-          this.events.status({ id, busy, process: name })
-        }
+        const looksBusy = name !== '' && name !== session.shellName && !SHELLS.has(name)
+        this.setStatus(id, session, session.integrated ? session.busy : looksBusy, name)
       }
     }, 1000)
   }

@@ -49,11 +49,26 @@ ships prebuilt binaries.
 
 ## How it works
 
-**Projects** (left, top). Add a folder with `+` or ⌘O. Each project keeps its
-own terminals and layout, and they keep running while you look at another one.
-The green badge counts running processes.
+**The sidebar is a list of project cards.** Add a folder with `+` or ⌘O. Click
+a project to show its terminals on the right; click the one already shown to
+unfold or fold it. Folded, a card lists only what is running in it right now.
+Unfolded, it also lists everything it can run. Every heading inside a card
+(Running, Presets, each script file, Custom commands) folds on a click. Each
+project gets its own colour, used for its icon and its outline. Each project keeps its own
+terminals and layout, and they keep running while you look at another one.
 
-**Scripts** (left, bottom). Read from the project and its sub-folders:
+Hovering a project shows its buttons: stop everything running in it, re-read
+its scripts from disk, and a menu to move it up or down, open its folder or
+remove it. Drag a project to reorder; a blue line shows where it will land.
+
+**Running** means a command is executing in that terminal right now. A
+terminal waiting at its prompt is not running, whatever opened it. The count
+beside a project, the green dots and the *Running* list at the top of its card
+(each entry with its own stop button, the same as Ctrl-C) all follow that. MrTerminal learns it from
+the shell itself (zsh, bash 4.4+ and fish 4 report when a command starts and
+ends), so it also covers commands you type by hand.
+
+**Scripts.** Read from the project and its sub-folders:
 
 | File | Runs as |
 | --- | --- |
@@ -66,7 +81,8 @@ The green badge counts running processes.
 | `Cargo.toml`, `go.mod`, `deno.json`, `composer.json` | the usual commands |
 
 Click a script to run it. Click it again to jump to its terminal (or re-run it
-if it stopped); ⌥-click starts a second copy.
+if it stopped); ⌥-click starts a second copy. Scripts are re-read whenever the
+window gets focus, or with the project's refresh button.
 
 To give a script a friendlier name (say `UAT server` instead of `dev:uat`),
 hover it and press the pencil, or double-click the title of its tab. The name
@@ -74,23 +90,28 @@ shows in both places and is remembered per project; the command itself is
 untouched. Clear the name to go back to the original. If the script is later
 renamed or removed in the project, the old name is simply dropped.
 
-**Presets** (top of the script list). Several terminals in one click. Open the
-terminals you want together, arrange them, then press `+` next to Presets and
-name it. Each preset shows a miniature of the window with numbered panes, and
-the command behind each number, so you can see what will open where. Clicking
-it puts those terminals in that arrangement: ones already open are kept and
-moved into place, stopped ones are re-run, missing ones are started. Hover a
-preset to rename it, replace it with what is open now, or delete it.
+**Presets.** Several terminals in one click. Open the terminals you want
+together, arrange them, then press `+` next to Presets. The dialog shows a
+miniature of the window with numbered panes and the command behind each
+number; remove the ones you do not want and save. Clicking the preset puts
+those terminals in that arrangement: ones already open are kept and moved
+into place, stopped ones are re-run, missing ones are started. The pencil on a
+preset reopens the dialog to rename it, drop terminals, replace it with what
+is open now, or delete it.
 
-**Custom commands** (below the detected scripts). Anything that is not in a script
-file: press `+`, type the command, and optionally give it a name and a folder
-to run in (relative to the project, or absolute). They are saved per project,
-run like any other script, and can be edited or deleted from the row.
+**Custom commands.** Anything that is not in a script file: press `+`, type
+the command, and optionally give it a name and a folder to run in (relative to
+the project, or absolute). They are saved per project, run like any other
+script, and can be edited or deleted from the row.
 
 **Terminals** (right). Drag a tab onto the edge of any pane to split that way,
 or onto another tab bar to stack it as a tab. Each pane also has buttons for
 new tab, split right, split down and maximize. Double-click a tab title to
-rename it. The dot is green while something is running in that terminal.
+rename it. A plain terminal is named after the folder it opens in.
+
+Closed something by mistake? ⇧⌘T (or the arrow in the top bar) reopens the
+last closed tab where it was and runs its command again; it also brings back
+a project you just removed, with its presets and commands.
 
 | | macOS | Linux / Windows |
 | --- | --- | --- |
@@ -99,6 +120,7 @@ rename it. The dot is green while something is running in that terminal.
 | Restart terminal | ⇧⌘R | Ctrl+Shift+R |
 | Clear | ⌘K | Ctrl+Shift+K |
 | Close terminal | ⌘W | Ctrl+Shift+W |
+| Reopen closed tab or project | ⇧⌘T | Ctrl+Shift+Z |
 | Toggle sidebar | ⌘B | Ctrl+B |
 
 ## Sessions
@@ -118,8 +140,12 @@ Tick "always do this" to stop being asked; change it later in Settings (⌘,).
 
 Settings (⌘,) has six themes (Midnight, Dracula, Nord, Solarized Dark,
 Daylight, Solarized Light) that recolour the app and the terminals together,
-and a terminal font field: type the name of any font installed on the machine
+and a terminal font field. The app uses Geist for its interface and Geist Mono
+in terminals by default (both bundled); to change the terminal font, type the
+name of any font installed on the machine
 (for example a Nerd Font for prompt icons) and pick a size.
+
+A project whose folder no longer exists is dropped from the list at startup.
 
 Processes do not survive quitting the app: resuming starts them again, and
 scrollback from the previous run is not kept.
