@@ -260,8 +260,10 @@ kbd {
   align-items: center;
   justify-content: space-between;
   flex: none;
-  height: 40px;
+  /* Same height and rule as the top bar, so the two read as one title bar. */
+  height: 44px;
   padding: 0 10px 0 14px;
+  border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
 }
 
@@ -269,20 +271,24 @@ kbd {
   -webkit-app-region: no-drag;
 }
 
-/* The window buttons sit on the left; the name goes after them on one line. */
+/* The window buttons sit on the left; the name goes after them on one line.
+   No mark there: a coloured square next to them reads as a fourth button. */
 [data-platform='darwin'] .sidebar-head {
-  padding-left: 82px;
+  padding-left: 88px;
+}
+
+[data-platform='darwin'] .brand-mark {
+  display: none;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
-  color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
@@ -316,8 +322,9 @@ kbd {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Room above the first card and below the last for the drop line. */
-  padding: 7px 6px 12px;
+  /* Room below the last card for the drop line. The top has none, so a
+     pinned project title sits flush under the header. */
+  padding: 0 8px 12px;
 }
 
 .rename input,
@@ -345,41 +352,50 @@ kbd {
 /* ── Project ─────────────────────────────────────────────────────────────── */
 
 /* Each project is a card: its title, and inside it everything that belongs
-   to it (what is running, and when unfolded what it can run). */
+   to it (what is running, and when unfolded what it can run). Cards have no
+   outline; the one on screen is a lifted surface with a rail in its colour. */
 .project {
+  --card: var(--panel);
   position: relative;
-  margin-bottom: 6px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--panel-2) 45%, transparent);
+  margin-top: 6px;
+  border-radius: 10px;
+  background: var(--card);
 }
 
-/* The project on screen: a slightly stronger grey outline and a lifted
-   background. Its colour stays on the icon only. */
 .project-active {
-  border-color: color-mix(in srgb, var(--muted) 45%, var(--border));
-  background: var(--panel-2);
+  --card: var(--panel-2);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent);
 }
 
-/* The project's initial on its colour. */
+.project-active > .project-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 13px;
+  bottom: 13px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--project);
+}
+
+/* The project's initials on its colour. */
 .project-tile {
   display: flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 24px;
-  height: 24px;
-  margin-right: 4px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--project) 20%, transparent);
-  color: var(--project);
-  font-size: 11.5px;
-  font-weight: 600;
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  border-radius: 8px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--project) 82%, white), var(--project));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 14%, transparent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 1px color-mix(in srgb, black 25%, transparent);
   text-transform: uppercase;
-}
-
-.project-active .project-tile {
-  background: color-mix(in srgb, var(--project) 32%, transparent);
 }
 
 .project-dragging {
@@ -409,19 +425,36 @@ kbd {
   bottom: -5px;
 }
 
+/* The title stays pinned while its card scrolls, so a long list of scripts
+   can always be folded without scrolling back up. Hence the opaque fill. */
 .project-head {
-  position: relative;
+  --head: var(--card);
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 4px;
-  height: 38px;
-  padding: 0 4px 0 7px;
-  border-radius: 7px;
+  height: 46px;
+  padding: 0 6px 0 11px;
+  border-radius: 10px;
+  background: var(--head);
   cursor: pointer;
 }
 
 .project-head:hover {
-  background: color-mix(in srgb, var(--hover) 70%, transparent);
+  --head: color-mix(in srgb, var(--hover) 70%, var(--card));
+}
+
+/* Above the titles of the cards below it while its menu is open. */
+.project-head:has(.menu) {
+  z-index: 4;
+}
+
+.project-open > .project-head,
+.project:has(> .running) > .project-head {
+  border-radius: 10px 10px 0 0;
+  box-shadow: 0 1px 0 var(--border);
 }
 
 .project-text {
@@ -440,8 +473,10 @@ kbd {
 }
 
 .project-name {
-  color: var(--muted);
-  font-weight: 500;
+  color: color-mix(in srgb, var(--text) 82%, var(--muted));
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
 }
 
 .project-active .project-name,
@@ -450,7 +485,7 @@ kbd {
 }
 
 .project-path {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -460,6 +495,7 @@ kbd {
   align-items: center;
   gap: 5px;
   flex: none;
+  padding-right: 2px;
   color: var(--muted);
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
@@ -471,31 +507,40 @@ kbd {
   box-shadow: none;
 }
 
-.project-actions,
 .row-actions {
   display: none;
   align-items: center;
   flex: none;
 }
 
-.project-head:hover .project-actions,
-.project-actions-open,
 .row:hover .row-actions {
   display: flex;
 }
 
-.project-head:hover .project-running {
+/* Laid over the end of the title rather than beside it, so the name does
+   not get squeezed and jump when the pointer comes in. */
+.project-actions {
+  position: absolute;
+  top: 0;
+  right: 30px;
+  bottom: 0;
   display: none;
+  align-items: center;
+  gap: 2px;
+  padding-left: 22px;
+  background: linear-gradient(to right, transparent, var(--head) 18px);
+}
+
+.project-head:hover .project-actions,
+.project-actions-open {
+  display: flex;
 }
 
 /* Folded / unfolded marker, at the right so names keep the full width. */
 .project-fold {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 18px;
-  color: var(--faint);
+  width: 24px;
+  height: 24px;
+  color: var(--muted);
 }
 
 .project-fold .icon {
@@ -509,7 +554,7 @@ kbd {
 /* What is running, under its own heading: one line per terminal with a
    thin rule between them so neighbours do not run together. */
 .running {
-  padding: 0 4px 4px;
+  padding: 2px 6px 4px;
 }
 
 .running-list .row + .row {
@@ -526,7 +571,10 @@ kbd {
 }
 
 .project-body {
-  padding: 2px 4px 4px;
+  padding: 2px 6px 6px;
+}
+
+.running + .project-body {
   border-top: 1px solid var(--border);
 }
 
@@ -718,7 +766,7 @@ kbd {
 
 .menu {
   position: absolute;
-  top: 34px;
+  top: 40px;
   right: 4px;
   z-index: 50;
   min-width: 170px;

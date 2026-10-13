@@ -66,7 +66,9 @@ src/renderer/   React UI
   started through `shellIntegration.ts`, whose startup files source the user's
   own and add hooks that print OSC 133 marks (`C` command starts, `D`/`A`
   prompt is back); `pty.ts` reads them from the output stream. Shells that
-  emit no marks fall back to "the foreground process is not a shell". Never
+  emit no marks fall back to "the foreground process is not a shell", and
+  only once a line has been entered: before that, whatever is in the
+  foreground was started by the shell's startup files. Never
   treat an open terminal as running: the UI promises that green means a
   command is executing. `shellIntegration.test.ts` runs real shells; set
   `MRT_TEST_ZSH` to test a zsh that is not in `/bin`.

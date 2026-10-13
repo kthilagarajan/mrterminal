@@ -505,6 +505,22 @@ function parentFolder(path: string): string {
   return parent.startsWith(window.api.home) ? `~${parent.slice(window.api.home.length)}` : parent
 }
 
+/** `TA` for `telemedicine-app`, `W` for `webportal`: what goes on the project's tile. */
+function initials(name: string): string {
+  const words = name.split(/[^\p{L}\p{N}]+|(?<=\p{Ll})(?=\p{Lu})/u).filter(Boolean)
+  return words.slice(0, 2).map((w) => w[0]).join('') || '·'
+}
+
+/**
+ * Show a project and unfold it, folding the others: the open card is the
+ * project on screen. The chevron still unfolds any card on its own.
+ */
+function openProject(id: string): void {
+  const config = getState().config
+  if (!config) return
+  patchConfig({ activeProjectId: id, projects: config.projects.map((p) => ({ ...p, expanded: p.id === id })) })
+}
+
 const DRAG_TYPE = 'application/x-mrterminal-project'
 
 function ProjectNode({
@@ -527,6 +543,13 @@ function ProjectNode({
   const [drop, setDrop] = useState<'before' | 'after' | null>(null)
   const running = project.terminals.filter((t) => statuses[t.id]?.busy).length
   const expanded = project.expanded
+  const card = useRef<HTMLDivElement>(null)
+
+  // Folding a long card from its pinned title leaves the list scrolled past
+  // it; bring the card back into view.
+  useEffect(() => {
+    if (!expanded) card.current?.scrollIntoView({ block: 'nearest' })
+  }, [expanded])
 
   const toggle = (): void => editProject(project.id, (p) => ({ ...p, expanded: !p.expanded }))
   const refresh = (): void => {
@@ -561,6 +584,7 @@ function ProjectNode({
     // The whole card is the drop target, so the line shows between cards
     // wherever the pointer is over one, not only over its title.
     <div
+      ref={card}
       className={classes.filter(Boolean).join(' ')}
       style={{ '--project': project.color } as CSSProperties}
       onDragOver={dragOver}
@@ -577,10 +601,7 @@ function ProjectNode({
         draggable
         title={`${project.path}\n\nClick to ${active ? (expanded ? 'collapse' : 'expand') : 'show'} · drag to reorder`}
         // Click shows the project; clicking the one already shown folds or unfolds it.
-        onClick={() => {
-          if (!active) selectProject(project.id)
-          if (active || !expanded) toggle()
-        }}
+        onClick={() => (active ? toggle() : openProject(project.id))}
         onDragStart={(event) => {
           event.dataTransfer.setData(DRAG_TYPE, project.id)
           event.dataTransfer.effectAllowed = 'move'
@@ -588,7 +609,7 @@ function ProjectNode({
         }}
         onDragEnd={() => setDragging(false)}
       >
-        <span className="project-tile">{project.name.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 1) || '·'}</span>
+        <span className="project-tile">{initials(project.name)}</span>
         <span className="project-text">
           <span className="project-name">{project.name}</span>
           <span className="project-path">{parentFolder(project.path)}</span>
@@ -604,9 +625,12 @@ function ProjectNode({
           <IconButton icon="refresh" className={refreshing ? 'spin' : ''} title="Re-read this project's scripts" onClick={refresh} />
           <IconButton icon="more" title="More" onClick={() => setMenu(!menu)} />
         </span>
-        <span className={expanded ? 'project-fold project-fold-open' : 'project-fold'}>
-          <Icon name="chevron" />
-        </span>
+        <IconButton
+          icon="chevron"
+          className={expanded ? 'project-fold project-fold-open' : 'project-fold'}
+          title={expanded ? 'Collapse' : 'Expand without switching to it'}
+          onClick={toggle}
+        />
         {menu && <ProjectMenu project={project} index={index} count={count} onClose={() => setMenu(false)} />}
       </div>
       <Running project={project} statuses={statuses} />

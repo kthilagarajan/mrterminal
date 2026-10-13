@@ -12,6 +12,12 @@ interface Session {
   process: string
   /** The shell reports command start/end itself; trust that over process names. */
   integrated: boolean
+  /**
+   * A line has been entered. Until then whatever is in the foreground was
+   * started by the shell's own startup files (nvm, brew, compinit...), which
+   * is the shell getting ready, not a command running.
+   */
+  entered: boolean
   /** End of the previous chunk, in case a mark was split across two. */
   tail: string
   /** Pending "type the command once the prompt is up" timers. */
@@ -102,6 +108,7 @@ export class PtyManager {
       busy: false,
       process: '',
       integrated: false,
+      entered: false,
       tail: '',
       timers: []
     }
@@ -142,6 +149,7 @@ export class PtyManager {
     const type = (): void => {
       if (typed || !opts.command || !cwdOk || this.sessions.get(opts.id) !== session) return
       typed = true
+      if (opts.run) session.entered = true
       proc.write(opts.run ? `${opts.command}\r` : opts.command)
     }
     const onFirstOutput = (): void => {
@@ -154,7 +162,10 @@ export class PtyManager {
   }
 
   write(id: string, data: string): void {
-    this.sessions.get(id)?.proc.write(data)
+    const session = this.sessions.get(id)
+    if (!session) return
+    if (/[\r\n]/.test(data)) session.entered = true
+    session.proc.write(data)
   }
 
   resize(id: string, cols: number, rows: number): void {
@@ -219,7 +230,7 @@ export class PtyManager {
           continue
         }
         const looksBusy = name !== '' && name !== session.shellName && !SHELLS.has(name)
-        this.setStatus(id, session, session.integrated ? session.busy : looksBusy, name)
+        this.setStatus(id, session, session.integrated ? session.busy : session.entered && looksBusy, name)
       }
     }, 1000)
   }

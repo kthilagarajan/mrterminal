@@ -50,7 +50,8 @@ function createWindow(): void {
     backgroundColor: theme.ui.bg,
     title: 'MrTerminal',
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
-    trafficLightPosition: { x: 16, y: 17 },
+    // Centred in the 44px bar the sidebar head and the top bar share.
+    trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
