@@ -1,0 +1,201 @@
+import { existsSync, statSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { basename } from 'node:path'
+import * as pty from 'node-pty'
+import type { PtyCreateOptions, PtyExit, PtyStatus } from '@shared/types'
+
+interface Session {
+  proc: pty.IPty
+  shellName: string
+  busy: boolean
+  process: string
+  /** Pending "type the command once the prompt is up" timers. */
+  timers: NodeJS.Timeout[]
+}
+
+export interface PtyEvents {
+  data(id: string, data: string): void
+  exit(e: PtyExit): void
+  status(s: PtyStatus): void
+}
+
+/** Variables that describe *our* process and would confuse tools in the shell. */
+const STRIP_ENV = [/^npm_/, /^ELECTRON_/, /^VITE_/, /^NODE_ENV$/, /^INIT_CWD$/, /^MRTERMINAL_/]
+
+function shellEnv(): Record<string, string> {
+  const env: Record<string, string> = {}
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value === undefined || STRIP_ENV.some((re) => re.test(key))) continue
+    env[key] = value
+  }
+  env.TERM = 'xterm-256color'
+  env.COLORTERM = 'truecolor'
+  env.TERM_PROGRAM = 'MrTerminal'
+  return env
+}
+
+export function defaultShell(): string {
+  if (process.platform === 'win32') return process.env.COMSPEC || 'powershell.exe'
+  if (process.env.SHELL && existsSync(process.env.SHELL)) return process.env.SHELL
+  return process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash'
+}
+
+function isDir(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Owns the real shell processes. Each terminal is the user's own login shell
+ * running in a pty; commands are typed into it, so Ctrl-C drops back to a
+ * prompt with the command in history, exactly as in any other terminal.
+ */
+export class PtyManager {
+  private sessions = new Map<string, Session>()
+  private poll: NodeJS.Timeout | null = null
+  private shuttingDown = false
+
+  constructor(
+    private events: PtyEvents,
+    private getShell: () => string | null
+  ) {}
+
+  create(opts: PtyCreateOptions): { ok: true } | { ok: false; error: string } {
+    this.kill(opts.id)
+
+    const shell = this.getShell() || defaultShell()
+    const cwdOk = isDir(opts.cwd)
+    const isWindows = process.platform === 'win32'
+
+    let proc: pty.IPty
+    try {
+      // A login shell, so PATH (nvm, Homebrew, pyenv...) matches the user's
+      // normal terminal even when the app was launched from Finder.
+      proc = pty.spawn(shell, isWindows ? [] : ['-l'], {
+        name: 'xterm-256color',
+        cols: Math.max(2, opts.cols),
+        rows: Math.max(1, opts.rows),
+        cwd: cwdOk ? opts.cwd : homedir(),
+        env: shellEnv()
+      })
+    } catch (err) {
+      return { ok: false, error: `Could not start ${shell}: ${(err as Error).message}` }
+    }
+
+    const session: Session = {
+      proc,
+      shellName: basename(shell).replace(/\.exe$/i, ''),
+      busy: false,
+      process: '',
+      timers: []
+    }
+    this.sessions.set(opts.id, session)
+
+    if (!cwdOk) {
+      this.events.data(
+        opts.id,
+        `\x1b[33mFolder not found: ${opts.cwd}\r\nStarted in your home folder instead.\x1b[0m\r\n`
+      )
+    }
+
+    let sawOutput = false
+    proc.onData((data) => {
+      if (this.sessions.get(opts.id) !== session) return
+      this.events.data(opts.id, data)
+      if (!sawOutput) {
+        sawOutput = true
+        onFirstOutput()
+      }
+    })
+    proc.onExit(({ exitCode, signal }) => {
+      if (this.sessions.get(opts.id) !== session) return // killed by us
+      this.clear(session)
+      this.sessions.delete(opts.id)
+      if (!this.shuttingDown) this.events.exit({ id: opts.id, exitCode, signal })
+    })
+
+    // Wait for the shell to print its prompt before typing, otherwise the
+    // command is echoed twice (once raw, once by the line editor).
+    let typed = false
+    const type = (): void => {
+      if (typed || !opts.command || !cwdOk || this.sessions.get(opts.id) !== session) return
+      typed = true
+      proc.write(opts.run ? `${opts.command}\r` : opts.command)
+    }
+    const onFirstOutput = (): void => {
+      if (opts.command) session.timers.push(setTimeout(type, 250))
+    }
+    if (opts.command) session.timers.push(setTimeout(type, 3000))
+
+    this.startPolling()
+    return { ok: true }
+  }
+
+  write(id: string, data: string): void {
+    this.sessions.get(id)?.proc.write(data)
+  }
+
+  resize(id: string, cols: number, rows: number): void {
+    const session = this.sessions.get(id)
+    if (!session || cols < 2 || rows < 1) return
+    try {
+      session.proc.resize(cols, rows)
+    } catch {
+      /* the process exited between the check and the call */
+    }
+  }
+
+  /** Stop a terminal without reporting an exit for it. */
+  kill(id: string): void {
+    const session = this.sessions.get(id)
+    if (!session) return
+    this.sessions.delete(id)
+    this.clear(session)
+    try {
+      session.proc.kill()
+    } catch {
+      /* already gone */
+    }
+  }
+
+  killAll(): void {
+    this.shuttingDown = true
+    for (const id of [...this.sessions.keys()]) this.kill(id)
+    if (this.poll) clearInterval(this.poll)
+    this.poll = null
+  }
+
+  private clear(session: Session): void {
+    for (const t of session.timers) clearTimeout(t)
+    session.timers = []
+  }
+
+  /** Report whether something other than the shell owns each terminal. */
+  private startPolling(): void {
+    if (this.poll || process.platform === 'win32') return
+    this.poll = setInterval(() => {
+      if (this.sessions.size === 0) {
+        clearInterval(this.poll!)
+        this.poll = null
+        return
+      }
+      for (const [id, session] of this.sessions) {
+        let name: string
+        try {
+          name = basename(session.proc.process).replace(/^-/, '')
+        } catch {
+          continue
+        }
+        const busy = name !== '' && name !== session.shellName
+        if (busy !== session.busy || name !== session.process) {
+          session.busy = busy
+          session.process = name
+          this.events.status({ id, busy, process: name })
+        }
+      }
+    }, 1000)
+  }
+}

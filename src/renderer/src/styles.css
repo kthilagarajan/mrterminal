@@ -1,0 +1,839 @@
+:root {
+  --bg: #0d0e12;
+  --panel: #13141a;
+  --panel-2: #191b23;
+  --hover: #20232d;
+  --border: #23262f;
+  --text: #d7dae0;
+  --muted: #7d8494;
+  --faint: #565c6b;
+  --accent: #db2777;
+  --accent-soft: rgba(219, 39, 119, 0.16);
+  --green: #4ade80;
+  --red: #f87171;
+  --mono: 'SF Mono', Menlo, Monaco, 'JetBrains Mono', 'DejaVu Sans Mono', Consolas, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+body.resizing {
+  cursor: col-resize;
+}
+
+body.resizing .workspaces {
+  pointer-events: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+kbd {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.icon {
+  display: inline-flex;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--hover);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #e83a88;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Shell ───────────────────────────────────────────────────────────────── */
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  flex: none;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  -webkit-app-region: drag;
+}
+
+.topbar > * {
+  -webkit-app-region: no-drag;
+}
+
+.topbar > .spacer {
+  -webkit-app-region: drag;
+}
+
+/* Leave room for the traffic lights when the sidebar is hidden. */
+[data-platform='darwin'] .topbar-inset {
+  padding-left: 84px;
+}
+
+.topbar-name {
+  font-weight: 600;
+}
+
+.topbar-path {
+  border: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-path:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.workspaces {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace {
+  position: absolute;
+  inset: 0;
+}
+
+.workspace-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+.welcome-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.welcome p {
+  max-width: 440px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-drag {
+  flex: none;
+  height: 8px;
+  -webkit-app-region: drag;
+}
+
+[data-platform='darwin'] .sidebar-drag {
+  height: 44px;
+}
+
+.sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.sidebar-resize:hover {
+  background: var(--accent-soft);
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  padding: 6px 8px 4px 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.projects {
+  flex: none;
+  max-height: 34%;
+  overflow-y: auto;
+  padding: 0 6px 8px;
+}
+
+.project {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 4px 0 8px;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.project:hover {
+  background: var(--hover);
+}
+
+.project-active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.project-active:hover {
+  background: var(--accent-soft);
+}
+
+.project-active .icon {
+  color: var(--accent);
+}
+
+.project-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.project-remove,
+.script-remove {
+  visibility: hidden;
+}
+
+.project:hover .project-remove,
+.script:hover .script-remove {
+  visibility: visible;
+}
+
+.project .project-remove .icon {
+  color: inherit;
+}
+
+.badge {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(74, 222, 128, 0.14);
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.scripts {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.scripts-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 6px 10px;
+}
+
+.filter,
+.add-command input,
+.field input,
+.field select {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  outline: none;
+  user-select: text;
+}
+
+.filter:focus,
+.add-command input:focus,
+.field input:focus,
+.field select:focus {
+  border-color: var(--accent);
+}
+
+.filter {
+  flex: none;
+  width: auto;
+  margin: 2px 8px 6px;
+}
+
+.group {
+  margin-bottom: 6px;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 26px;
+  padding: 0 4px 0 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-head:hover {
+  color: var(--text);
+}
+
+.group-head-static {
+  padding-left: 8px;
+  cursor: default;
+}
+
+.group-head-static:hover {
+  color: var(--muted);
+}
+
+.group-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.group-head-static .group-name {
+  direction: ltr;
+}
+
+.group-runner {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 16px;
+}
+
+.chevron {
+  display: inline-flex;
+  transition: transform 0.12s;
+}
+
+.chevron-open {
+  transform: rotate(90deg);
+}
+
+.script {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 4px 0 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.script:hover {
+  background: var(--hover);
+}
+
+.script-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 14px;
+  color: var(--faint);
+}
+
+.script:hover .script-icon {
+  color: var(--green);
+}
+
+.script-name {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.script-running .script-name {
+  color: var(--green);
+}
+
+.script-detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.empty {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.empty-btn {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.empty-btn:hover {
+  color: var(--text);
+}
+
+.add-command {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 4px;
+}
+
+.add-command input:first-child {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.add-command-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.sidebar-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.sidebar-foot:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+/* ── Status dots ─────────────────────────────────────────────────────────── */
+
+.dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.dot-busy {
+  background: var(--green);
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.15);
+}
+
+.dot-exited {
+  background: var(--red);
+}
+
+/* ── Dock (dockview overrides) ───────────────────────────────────────────── */
+
+.mrt-dock {
+  --dv-group-view-background-color: var(--bg);
+  --dv-tabs-and-actions-container-background-color: var(--panel);
+  --dv-tabs-and-actions-container-height: 32px;
+  --dv-tabs-and-actions-container-font-size: 12.5px;
+  --dv-activegroup-visiblepanel-tab-background-color: var(--bg);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--panel);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--panel);
+  --dv-activegroup-visiblepanel-tab-color: var(--text);
+  --dv-activegroup-hiddenpanel-tab-color: var(--muted);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--muted);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--faint);
+  --dv-tab-divider-color: var(--border);
+  --dv-separator-border: var(--border);
+  --dv-paneview-header-border-color: var(--border);
+  --dv-drag-over-background-color: rgba(219, 39, 119, 0.18);
+  --dv-drag-over-border-color: var(--accent);
+  --dv-active-sash-color: var(--accent);
+  --dv-icon-hover-background-color: var(--hover);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  padding: 0 4px 0 10px;
+  white-space: nowrap;
+}
+
+.tab-title {
+  font-family: var(--mono);
+}
+
+.tab .icon-btn {
+  width: 18px;
+  height: 18px;
+  margin-left: -3px;
+  opacity: 0;
+}
+
+.tab .icon-btn:first-of-type {
+  margin-left: 2px;
+}
+
+.dv-tab:hover .tab .icon-btn,
+.dv-active-tab .tab .icon-btn {
+  opacity: 1;
+}
+
+.tab-rename {
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  outline: none;
+  user-select: text;
+}
+
+/* Mark the terminal that has keyboard focus. */
+.dv-groupview.dv-active-group .dv-active-tab .tab {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.group-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  padding: 0 6px;
+}
+
+.term-host {
+  width: 100%;
+  height: 100%;
+  padding: 6px 2px 2px 10px;
+  background: var(--bg);
+}
+
+.term {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.term .xterm {
+  height: 100%;
+  user-select: text;
+}
+
+.watermark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.watermark-title {
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* ── Dialogs ─────────────────────────────────────────────────────────────── */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.backdrop-solid {
+  background: var(--bg);
+  -webkit-app-region: drag;
+}
+
+.dialog {
+  width: min(520px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  -webkit-app-region: no-drag;
+}
+
+.dialog h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.dialog p {
+  margin: 0 0 10px;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 14px;
+}
+
+.dialog-actions-end {
+  justify-content: flex-end;
+  margin-bottom: 0;
+}
+
+.restore-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.restore-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+}
+
+.restore-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.restore-list .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.check input {
+  accent-color: var(--accent);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 14px 0;
+}
+
+.field > span {
+  font-weight: 500;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background: #2c303b;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* xterm paints its own black behind the rows; let the pane colour show. */
+.term .xterm-viewport,
+.term .xterm-scrollable-element {
+  background-color: transparent !important;
+}

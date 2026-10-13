@@ -1,0 +1,30 @@
+appId: dev.mrterminal.app
+productName: MrTerminal
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+# node-pty ships N-API prebuilds for macOS and Windows, so no native rebuild
+# (and no Xcode toolchain) is needed to package.
+npmRebuild: false
+# node-pty executes a helper binary, which has to live outside the asar archive.
+asarUnpack:
+  - node_modules/node-pty/**
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  darkModeSupport: true
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # No Apple Developer certificate yet: sign ad hoc so the app runs on Apple
+  # silicon. The hardened runtime would then refuse to load node-pty.
+  identity: '-'
+  hardenedRuntime: false
+linux:
+  target: [AppImage]
+  category: Development
+win:
+  target: [nsis]

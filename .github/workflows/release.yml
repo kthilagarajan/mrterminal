@@ -1,0 +1,36 @@
+name: Release
+
+# Builds the macOS app and attaches the .dmg files to a GitHub release.
+# Runs when a version tag is pushed (`git tag v0.1.0 && git push --tags`),
+# or by hand from the Actions tab (the .dmg files are then run artifacts).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run dist -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MrTerminal-mac
+          path: dist/*.dmg
+          if-no-files-found: error
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.dmg --title "MrTerminal $GITHUB_REF_NAME" --generate-notes
