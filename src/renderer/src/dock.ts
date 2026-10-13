@@ -137,7 +137,7 @@ class TerminalTab implements ITabRenderer {
 
     const paint = (): void => {
       const status = getState().statuses[id]
-      const state = status?.exitCode !== undefined ? 'exited' : status?.busy ? 'busy' : 'idle'
+      const state = status?.exitCode !== undefined ? 'exited' : status?.shown ? 'busy' : 'idle'
       dot.className = `dot dot-${state}`
       const def = getRuntime(id)?.def
       this.element.title = [

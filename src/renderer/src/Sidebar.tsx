@@ -38,7 +38,7 @@ function terminalFor(project: Project, script: { command?: string; cwd: string }
 function scriptState(project: Project, statuses: Statuses, script: { command?: string; cwd: string }): ScriptState {
   const terminal = terminalFor(project, script)
   if (!terminal) return 'none'
-  return statuses[terminal.id]?.busy ? 'running' : 'open'
+  return statuses[terminal.id]?.shown ? 'running' : 'open'
 }
 
 function IconButton({
@@ -228,7 +228,7 @@ function CommandForm({ project, existing, onDone }: { project: Project; existing
 /** What is running in this project right now, each with its own stop button. */
 function Running({ project, statuses }: { project: Project; statuses: Statuses }) {
   const [open, setOpen] = useState(true)
-  const running = project.terminals.filter((t) => statuses[t.id]?.busy)
+  const running = project.terminals.filter((t) => statuses[t.id]?.shown)
   if (running.length === 0) return null
   return (
     <div className="group running">
@@ -541,7 +541,7 @@ function ProjectNode({
   const [dragging, setDragging] = useState(false)
   /** Where a dragged project would land relative to this one. */
   const [drop, setDrop] = useState<'before' | 'after' | null>(null)
-  const running = project.terminals.filter((t) => statuses[t.id]?.busy).length
+  const running = project.terminals.filter((t) => statuses[t.id]?.shown).length
   const expanded = project.expanded
   const card = useRef<HTMLDivElement>(null)
 

@@ -2,7 +2,14 @@ import { useSyncExternalStore } from 'react'
 import { nextProjectColor, type Config, type Project, type ScriptGroup, type Settings, type TerminalDef, type UpdateState } from '@shared/types'
 
 export interface TermStatus {
+  /** A command is executing right now. */
   busy: boolean
+  /**
+   * It has been executing long enough to be worth showing. Every `ls` is
+   * busy for a few milliseconds; showing that makes the sidebar flicker on
+   * each Enter. This is what the UI draws; `busy` is what decisions use.
+   */
+  shown: boolean
   process: string
   /** Set once the shell has exited with a non-zero code. */
   exitCode?: number
@@ -140,14 +147,36 @@ export function addTerminalDef(projectId: string, def: TerminalDef): void {
 
 export function removeTerminalDef(projectId: string, id: string): void {
   editProject(projectId, (p) => ({ ...p, terminals: p.terminals.filter((t) => t.id !== id) }))
+  cancelShow(id)
   if (id in state.statuses) {
     const { [id]: _gone, ...statuses } = state.statuses
     setState({ statuses })
   }
 }
 
-export function setStatus(id: string, status: TermStatus): void {
-  setState({ statuses: { ...state.statuses, [id]: status } })
+/** How long a command must run before it is shown as running. */
+const SHOW_AFTER_MS = 2000
+const showTimers = new Map<string, number>()
+
+function cancelShow(id: string): void {
+  window.clearTimeout(showTimers.get(id))
+  showTimers.delete(id)
+}
+
+export function setStatus(id: string, status: Omit<TermStatus, 'shown'>): void {
+  const shown = status.busy && (state.statuses[id]?.shown ?? false)
+  if (!status.busy) cancelShow(id)
+  else if (!shown && !showTimers.has(id)) {
+    showTimers.set(
+      id,
+      window.setTimeout(() => {
+        showTimers.delete(id)
+        const current = state.statuses[id]
+        if (current?.busy) setState({ statuses: { ...state.statuses, [id]: { ...current, shown: true } } })
+      }, SHOW_AFTER_MS)
+    )
+  }
+  setState({ statuses: { ...state.statuses, [id]: { ...status, shown } } })
 }
 
 export async function refreshScripts(projectId: string): Promise<void> {
