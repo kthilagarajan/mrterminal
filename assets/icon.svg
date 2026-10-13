@@ -1,4 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#db2777"/>
-  <text x="32" y="32" dy="0.35em" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="32" font-weight="600" fill="#ffffff">M</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 824 824">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#262a3a"/>
+      <stop offset="1" stop-color="#0d0e14"/>
+    </linearGradient>
+    <linearGradient id="prompt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7ac0"/>
+      <stop offset="1" stop-color="#db2777"/>
+    </linearGradient>
+    <clipPath id="shape"><rect width="824" height="824" rx="186"/></clipPath>
+  </defs>
+  <g clip-path="url(#shape)">
+    <rect width="824" height="824" fill="url(#bg)"/>
+    <!-- three panes: one tall on the left, two stacked on the right -->
+    <rect x="500" y="0" width="324" height="412" fill="#ffffff" fill-opacity="0.035"/>
+    <path d="M500 0V824M500 412H824" stroke="#ffffff" stroke-opacity="0.13" stroke-width="8"/>
+    <!-- the prompt -->
+    <path d="M118 300l150 112-150 112" fill="none" stroke="url(#prompt)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="300" y="492" width="130" height="58" rx="14" fill="#f4f5f8"/>
+    <!-- a running process, and its output -->
+    <circle cx="578" cy="112" r="26" fill="#4ade80"/>
+    <g stroke="#ffffff" stroke-linecap="round" stroke-width="30">
+      <path d="M560 212h188" stroke-opacity="0.5"/>
+      <path d="M560 290h120" stroke-opacity="0.28"/>
+      <path d="M560 524h150" stroke-opacity="0.5"/>
+      <path d="M560 602h196" stroke-opacity="0.28"/>
+      <path d="M560 680h96" stroke-opacity="0.28"/>
+    </g>
+  </g>
+  <rect x="3" y="3" width="818" height="818" rx="183" fill="none" stroke="#ffffff" stroke-opacity="0.1" stroke-width="6"/>
 </svg>

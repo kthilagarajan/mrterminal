@@ -3,6 +3,7 @@ import { applyAppearance } from './appearance'
 import { findDock, getDock } from './dock'
 import {
   addProject,
+  aliasKey,
   getProject,
   getState,
   patchConfig,
@@ -61,7 +62,7 @@ export function deleteProject(project: Project): void {
 }
 
 /** Shown on a tab when the script lives in a nested package: `web:dev`. */
-function scriptTitle(group: ScriptGroup | null, script: DetectedScript): string {
+export function scriptTitle(group: ScriptGroup | null, script: DetectedScript): string {
   const folder = group?.relDir.split(/[\\/]/).pop()
   return folder ? `${folder}:${script.name}` : script.name
 }
@@ -81,7 +82,8 @@ export function runScript(project: Project, group: ScriptGroup | null, script: D
     if (!getState().statuses[existing.id]?.busy) getRuntime(existing.id)?.restart()
     return
   }
-  dock.open({ title: scriptTitle(group, script), command: script.command, cwd: script.cwd })
+  const alias = project.aliases[aliasKey(project, script.command, script.cwd)]
+  dock.open({ title: alias ?? scriptTitle(group, script), command: script.command, cwd: script.cwd })
 }
 
 export function handleMenu(action: MenuAction): void {

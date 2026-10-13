@@ -1,4 +1,4 @@
-appId: dev.mrterminal.app
+appId: com.webtkdev.mrterminal
 productName: MrTerminal
 directories:
   output: dist

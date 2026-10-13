@@ -70,6 +70,12 @@ export function editProject(id: string, edit: (project: Project) => Project): vo
   editConfig((c) => ({ ...c, projects: c.projects.map((p) => (p.id === id ? edit(p) : p)) }))
 }
 
+/** Identifies a command within a project: where it runs (relative) and what it runs. */
+export function aliasKey(project: Project, command: string, cwd: string): string {
+  const folder = cwd === project.path ? '' : cwd.startsWith(`${project.path}/`) ? cwd.slice(project.path.length + 1) : cwd
+  return `${folder}\n${command}`
+}
+
 export function getProject(id: string): Project | undefined {
   return state.config?.projects.find((p) => p.id === id)
 }
@@ -88,7 +94,7 @@ export function addProject(path: string, name: string): string {
     patchConfig({ activeProjectId: existing.id })
     return existing.id
   }
-  const project: Project = { id: uid(), name, path, terminals: [], layout: null, customCommands: [], presets: [] }
+  const project: Project = { id: uid(), name, path, terminals: [], layout: null, customCommands: [], presets: [], aliases: {} }
   editConfig((c) => ({ ...c, projects: [...c.projects, project], activeProjectId: project.id }))
   return project.id
 }

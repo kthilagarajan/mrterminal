@@ -26,6 +26,7 @@ function normalizeProject(raw: Partial<Project>): Project | null {
     customCommands: Array.isArray(raw.customCommands)
       ? raw.customCommands.filter((c) => c && typeof c.id === 'string' && typeof c.command === 'string')
       : [],
+    aliases: raw.aliases && typeof raw.aliases === 'object' && !Array.isArray(raw.aliases) ? raw.aliases : {},
     presets: Array.isArray(raw.presets)
       ? raw.presets.filter((p) => p && typeof p.id === 'string' && Array.isArray(p.terminals))
       : []

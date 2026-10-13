@@ -436,6 +436,7 @@ kbd {
 }
 
 .filter,
+.rename input,
 .add-command input,
 .field input,
 .field select {
@@ -450,6 +451,7 @@ kbd {
 }
 
 .filter:focus,
+.rename input:focus,
 .add-command input:focus,
 .field input:focus,
 .field select:focus {
@@ -1091,4 +1093,13 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.rename {
+  padding: 0 4px 0 6px;
+}
+
+.rename input {
+  font-family: var(--mono);
+  font-size: 12.5px;
 }

@@ -1,9 +1,9 @@
 import { useState, type FormEvent, type MouseEvent } from 'react'
 import type { Config, CustomCommand, DetectedScript, Preset, Project } from '@shared/types'
-import { getDock } from './dock'
-import { deleteProject, pickProject, runScript, selectProject } from './actions'
+import { customCwd, getDock, renameCommand } from './dock'
+import { deleteProject, pickProject, runScript, scriptTitle, selectProject } from './actions'
 import { Icon } from './Icon'
-import { editProject, patchConfig, refreshScripts, setState, uid, useStore, type TermStatus } from './store'
+import { aliasKey, editProject, patchConfig, refreshScripts, setState, uid, useStore, type TermStatus } from './store'
 
 type ScriptState = 'running' | 'open' | 'none'
 
@@ -50,7 +50,7 @@ function ScriptRow({
       {onEdit && (
         <button
           className="icon-btn script-remove"
-          title="Edit this command"
+          title="Rename or edit"
           onClick={(e) => {
             e.stopPropagation()
             onEdit()
@@ -75,13 +75,30 @@ function ScriptRow({
   )
 }
 
-/** Where a custom command runs: its own folder if it has one, else the project root. */
-function commandCwd(project: Project, cwd: string | undefined): string {
-  const folder = cwd?.trim().replace(/^\.\//, '')
-  if (!folder || folder === '.') return project.path
-  if (folder.startsWith('~')) return window.api.home + folder.slice(1)
-  if (folder.startsWith('/') || /^[A-Za-z]:[\\/]/.test(folder)) return folder
-  return `${project.path}/${folder}`
+/** Inline name field. `onDone(undefined)` = cancelled, `onDone('')` = back to the original name. */
+function RenameForm({ name, original, onDone }: { name: string; original: string; onDone: (name?: string) => void }) {
+  const [value, setValue] = useState(name)
+  return (
+    <form
+      className="rename"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onDone(value.trim())
+      }}
+    >
+      <input
+        autoFocus
+        spellCheck={false}
+        value={value}
+        placeholder={original}
+        title={`Shown here and on the terminal's tab. Clear it to go back to "${original}".`}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => onDone(value.trim())}
+        onKeyDown={(e) => e.key === 'Escape' && onDone()}
+      />
+    </form>
+  )
 }
 
 /** Add a custom command to the project, or edit `existing`. */
@@ -342,16 +359,21 @@ function Scripts({ project }: { project: Project }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   /** 'new', the id of the command being edited, or null when the form is closed. */
   const [editing, setEditing] = useState<string | null>(null)
+  /** Alias key of the detected script being renamed. */
+  const [renaming, setRenaming] = useState<string | null>(null)
 
   const query = filter.trim().toLowerCase()
   const matches = (s: DetectedScript): boolean =>
-    !query || s.name.toLowerCase().includes(query) || s.command.toLowerCase().includes(query)
+    !query ||
+    [s.name, s.command, project.aliases[aliasKey(project, s.command, s.cwd)] ?? ''].some((text) =>
+      text.toLowerCase().includes(query)
+    )
   const total = (groups ?? []).reduce((n, g) => n + g.scripts.length, 0)
 
   const custom = project.customCommands
     .map((c) => ({
       entry: c,
-      script: { name: c.name, command: c.command, cwd: commandCwd(project, c.cwd), detail: c.command }
+      script: { name: c.name, command: c.command, cwd: customCwd(project, c.cwd), detail: c.command }
     }))
     .filter((c) => matches(c.script))
 
@@ -389,14 +411,36 @@ function Scripts({ project }: { project: Project }) {
                 <span className="group-runner">{group.runner}</span>
               </button>
               {open &&
-                scripts.map((script) => (
-                  <ScriptRow
-                    key={script.command}
-                    script={script}
-                    state={scriptState(project, statuses, script)}
-                    onRun={(e) => runScript(project, group, script, e.altKey)}
-                  />
-                ))}
+                scripts.map((script) => {
+                  const key = aliasKey(project, script.command, script.cwd)
+                  const alias = project.aliases[key]
+                  if (renaming === key) {
+                    return (
+                      <RenameForm
+                        key={key}
+                        name={alias ?? script.name}
+                        original={script.name}
+                        onDone={(name) => {
+                          setRenaming(null)
+                          if (name === undefined) return
+                          // Clearing the field (or typing the original) drops the alias.
+                          if (!name || name === script.name) {
+                            renameCommand(project.id, script.command, script.cwd, scriptTitle(group, script), false)
+                          } else renameCommand(project.id, script.command, script.cwd, name)
+                        }}
+                      />
+                    )
+                  }
+                  return (
+                    <ScriptRow
+                      key={key}
+                      script={alias ? { ...script, name: alias, detail: script.command } : script}
+                      state={scriptState(project, statuses, script)}
+                      onRun={(e) => runScript(project, group, script, e.altKey)}
+                      onEdit={() => setRenaming(key)}
+                    />
+                  )
+                })}
             </div>
           )
         })}

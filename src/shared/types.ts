@@ -51,6 +51,11 @@ export interface Project {
   layout: unknown | null
   customCommands: CustomCommand[]
   presets: Preset[]
+  /**
+   * Names the user gave to detected scripts, keyed by `aliasKey`. An entry
+   * whose script no longer exists is simply never looked up.
+   */
+  aliases: Record<string, string>
 }
 
 export interface WindowBounds {

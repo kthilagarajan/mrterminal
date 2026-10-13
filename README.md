@@ -68,6 +68,12 @@ The green badge counts running processes.
 Click a script to run it. Click it again to jump to its terminal (or re-run it
 if it stopped); ⌥-click starts a second copy.
 
+To give a script a friendlier name (say `UAT server` instead of `dev:uat`),
+hover it and press the pencil, or double-click the title of its tab. The name
+shows in both places and is remembered per project; the command itself is
+untouched. Clear the name to go back to the original. If the script is later
+renamed or removed in the project, the old name is simply dropped.
+
 **Presets** (top of the script list). Several terminals in one click. Open the
 terminals you want together, arrange them, then press `+` next to Presets and
 name it. Each preset shows a miniature of the window with numbered panes, and

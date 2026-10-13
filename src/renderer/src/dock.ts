@@ -13,6 +13,7 @@ import type { Preset, TerminalDef } from '@shared/types'
 import { icons, type IconName } from './icons'
 import {
   addTerminalDef,
+  aliasKey,
   editProject,
   getProject,
   getState,
@@ -34,6 +35,42 @@ export function getDock(projectId: string): ProjectDock | undefined {
 export function findDock(terminalId: string): ProjectDock | undefined {
   for (const dock of docks.values()) if (dock.api.getPanel(terminalId)) return dock
   return undefined
+}
+
+/**
+ * Give a command a name, everywhere it shows: the sidebar entry (an alias for
+ * a detected script, or the custom command itself) and the tab of every
+ * terminal running it. `alias: false` only retitles the tabs, which is how a
+ * script goes back to its own name.
+ */
+export function renameCommand(projectId: string, command: string, cwd: string, name: string, alias = true): void {
+  const project = getProject(projectId)
+  if (!project) return
+  const same = (t: { command?: string; cwd: string }): boolean => t.command === command && t.cwd === cwd
+  const key = aliasKey(project, command, cwd)
+  const isCustom = (c: { command: string; cwd?: string }): boolean =>
+    c.command === command && aliasKey(project, command, cwd) === aliasKey(project, c.command, customCwd(project, c.cwd))
+
+  const { [key]: _old, ...others } = project.aliases
+  editProject(projectId, (p) => ({
+    ...p,
+    aliases: alias && !p.customCommands.some(isCustom) ? { ...others, [key]: name } : others,
+    customCommands: alias ? p.customCommands.map((c) => (isCustom(c) ? { ...c, name } : c)) : p.customCommands,
+    terminals: p.terminals.map((t) => (same(t) ? { ...t, title: name } : t))
+  }))
+  const dock = docks.get(projectId)
+  for (const terminal of project.terminals) {
+    if (same(terminal)) dock?.api.getPanel(terminal.id)?.api.setTitle(name)
+  }
+}
+
+/** Where a custom command runs: its own folder if it has one, else the project root. */
+export function customCwd(project: { path: string }, cwd: string | undefined): string {
+  const folder = cwd?.trim().replace(/^\.\//, '')
+  if (!folder || folder === '.') return project.path
+  if (folder.startsWith('~')) return window.api.home + folder.slice(1)
+  if (folder.startsWith('/') || /^[A-Za-z]:[\\/]/.test(folder)) return folder
+  return `${project.path}/${folder}`
 }
 
 function button(icon: IconName, title: string, onClick: (event: MouseEvent) => void): HTMLButtonElement {
@@ -136,6 +173,10 @@ class TerminalTab implements ITabRenderer {
       const value = input.value.trim()
       input.replaceWith(title)
       if (!commit || !value) return
+      // A terminal that runs a command shares its name with that command's
+      // entry in the sidebar; a plain shell is renamed on its own.
+      const def = getRuntime(api.id)?.def
+      if (def?.command) return renameCommand(this.projectId, def.command, def.cwd, value)
       api.setTitle(value)
       editProject(this.projectId, (p) => ({
         ...p,
