@@ -515,13 +515,13 @@ function ProjectMenu({ project, index, count, onClose }: { project: Project; ind
   )
 }
 
-/** `~/code` for `/Users/me/code/webportal`: the name already says the rest. */
+/** `~/code` for `/Users/me/code/storefront`: the name already says the rest. */
 function parentFolder(path: string): string {
   const parent = path.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '') || '/'
   return parent.startsWith(window.api.home) ? `~${parent.slice(window.api.home.length)}` : parent
 }
 
-/** `TA` for `telemedicine-app`, `W` for `webportal`: what goes on the project's tile. */
+/** `OA` for `orders-api`, `S` for `storefront`: what goes on the project's tile. */
 function initials(name: string): string {
   const words = name.split(/[^\p{L}\p{N}]+|(?<=\p{Ll})(?=\p{Lu})/u).filter(Boolean)
   return words.slice(0, 2).map((w) => w[0]).join('') || '·'

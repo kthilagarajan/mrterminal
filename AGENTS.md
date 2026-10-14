@@ -11,7 +11,7 @@ drawn with xterm.js, arranged with dockview. Windows and Linux are meant to
 follow, so avoid macOS-only assumptions outside clearly marked code.
 
 - Bundle id: `com.webtkdev.mrterminal`
-- Repository: `kthilagarajan/mrterminal` (private)
+- Repository: `kthilagarajan/mrterminal` (public)
 - User state: `~/.mrterminal/config.json`
 
 ## Commands
@@ -107,8 +107,8 @@ that:
 - `hardenedRuntime` must stay off, or node-pty's native module fails to load.
 - First launch of a downloaded build needs `xattr -cr /Applications/MrTerminal.app`.
 
-The update check uses GitHub's unauthenticated API, so it finds nothing while
-the repository is private.
+The update check uses GitHub's unauthenticated API, so it only works while the
+repository is public. README screenshots live in `docs/screenshots/`.
 
 ## Verifying UI changes
 

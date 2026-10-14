@@ -2,15 +2,71 @@
 
 # MrTerminal
 
-A visual workspace for the terminals a project needs. Add a repository, and
-every script it defines is one click away; arrange the running terminals with
-drag and drop; quit, reopen, and it all comes back.
+**One window for every terminal your projects need.** Add a repository and
+every script it defines is one click away. Start the dev server, the tests and
+the webhook listener together, see at a glance what is running, and get it all
+back after a restart.
 
-The terminals are your real login shell (`$SHELL`, so zsh on macOS) running in
-a pty. MrTerminal types the command into it for you, so Ctrl-C drops you back
-at a prompt with the command in history, exactly as in Terminal.app or iTerm.
+![MrTerminal running a web app's dev server, tests and Stripe listener side by side, with an API project's server and worker running in the sidebar](docs/screenshots/workspace.png)
+
+## Why
+
+Working on a real project usually means four or five long-running commands:
+a dev server, a test watcher, an API, a queue worker, a tunnel or webhook
+listener. Usually across more than one repository. In a plain terminal that
+turns into:
+
+- **Tab archaeology.** A dozen tabs titled `node` or `zsh`, and the one you
+  need is never the one you click.
+- **Retyping the same commands every morning.** `cd` into each folder, recall
+  whether it was `pnpm dev` or `make run`, and repeat after every reboot or
+  crash.
+- **Not knowing what is actually running.** Did the worker die? Is something
+  still holding port 5173? Which project is that server from?
+- **Remembering every repo's commands.** `package.json`, `Makefile`,
+  `pyproject.toml`, `compose.yaml`: each project hides its commands somewhere
+  different.
+
+IDE terminals and multiplexers help with parts of this, but they either tie you
+to one editor or ask you to write and maintain a config file. MrTerminal reads
+the commands your projects already define and gives each one a button.
+
+## What it does
+
+- **Every script, one click away.** MrTerminal reads `package.json`,
+  `Makefile`, `pyproject.toml`, `justfile`, `Procfile`, `compose.yaml`,
+  `Cargo.toml`, `go.mod` and more, including sub-folders, and picks the right
+  runner (`npm`, `pnpm`, `yarn`, `bun`, `uv`, `poetry`, `make`...). Green ▶
+  starts a command, red ■ stops it.
+- **Honest "running" status.** Green means a command is executing right now,
+  as reported by your shell, not just "a tab is open". Every project card shows
+  what is running inside it, even when folded, each with its own stop button.
+- **Your real shell.** Each terminal is your own login shell (zsh, bash, fish)
+  with your prompt, aliases and history. MrTerminal types the command for you,
+  so Ctrl-C drops you back at a prompt exactly like in Terminal.app or iTerm.
+- **Layouts you arrange by dragging.** Split, stack and resize terminals.
+  Each project keeps its own layout, and its terminals keep running while you
+  look at another project.
+- **Presets.** Save a set of terminals and their arrangement ("Full stack")
+  and start them all with one click tomorrow.
+- **Sessions that survive restarts.** Quit and reopen: your projects, layouts
+  and commands come back, and MrTerminal can start them again for you.
+- **Your own commands too.** Add anything that is not in a script file
+  (`stripe listen`, `docker compose logs -f`), give scripts friendlier names,
+  and reopen a tab you closed by mistake with ⇧⌘T.
+
+![Saving the open terminals as a preset: a miniature of the layout with numbered panes](docs/screenshots/preset.png)
+
+Six themes (Midnight, Dracula, Nord, Solarized Dark, Daylight, Solarized
+Light) recolour the app and the terminals together, and you can use any
+installed font.
+
+![Settings with the theme picker, terminal font, startup behaviour and updates](docs/screenshots/themes.png)
 
 ## Install
+
+MrTerminal runs on macOS (Apple silicon and Intel); Windows and Linux builds
+are planned.
 
 Download the `.dmg` from the [Releases](../../releases) page (`arm64` for Apple
 silicon, `x64` for Intel) and drag MrTerminal to Applications.
@@ -29,9 +85,6 @@ few hours. When a newer version exists an **Update to x.y.z** button appears in
 the top bar; clicking it downloads the update, verifies its checksum, replaces
 the app and restarts it, and your terminals reopen. Settings shows the running
 version and has a "Check for updates" button.
-
-The check uses GitHub's public API, so it only finds releases while the
-repository is public.
 
 To publish a version: bump `version` in `package.json`, commit, then
 `git tag v<version> && git push --tags`.
@@ -166,3 +219,7 @@ src/renderer/  React UI
 ```
 
 `npm test` runs the script-detection tests; `npm run typecheck` checks types.
+
+## License
+
+[MIT](LICENSE)
