@@ -528,13 +528,11 @@ function initials(name: string): string {
 }
 
 /**
- * Show a project and unfold it. Other cards keep their state: what the user
- * unfolded stays unfolded until they fold it.
+ * Show a project without changing its fold: clicking a card is often just to
+ * see its terminals, and unfolding it every time pushed the other cards away.
  */
 function openProject(id: string): void {
-  const config = getState().config
-  if (!config) return
-  patchConfig({ activeProjectId: id, projects: config.projects.map((p) => (p.id === id ? { ...p, expanded: true } : p)) })
+  patchConfig({ activeProjectId: id })
 }
 
 const DRAG_TYPE = 'application/x-mrterminal-project'
