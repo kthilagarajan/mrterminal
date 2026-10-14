@@ -357,11 +357,21 @@ kbd {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Keep cards centred and the same width when folding removes the scrollbar. */
-  scrollbar-gutter: stable both-edges;
+  /* A slim gutter kept on the right only: cards keep their width when
+     folding removes the scrollbar, and the left inset matches it. */
+  scrollbar-gutter: stable;
   /* Room below the last card for the drop line. The top has none, so a
      pinned project title sits flush under the header. */
-  padding: 0 8px 12px;
+  padding: 0 0 12px 6px;
+}
+
+.tree::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tree::-webkit-scrollbar-thumb {
+  border-width: 1px;
+  border-radius: 3px;
 }
 
 .rename input,
@@ -473,7 +483,7 @@ kbd {
   align-items: center;
   gap: 4px;
   height: 46px;
-  padding: 0 6px 0 11px;
+  padding: 0 4px 0 8px;
   border-radius: 10px;
   background: var(--head);
   cursor: pointer;
@@ -559,7 +569,7 @@ kbd {
 .project-actions {
   position: absolute;
   top: 0;
-  right: 30px;
+  right: 28px;
   bottom: 0;
   display: none;
   align-items: center;
@@ -591,7 +601,7 @@ kbd {
 /* What is running, under its own heading: one line per terminal with a
    thin rule between them so neighbours do not run together. */
 .running {
-  padding: 2px 6px 4px;
+  padding: 2px 4px 4px;
 }
 
 .running-list .row + .row {
@@ -608,7 +618,7 @@ kbd {
 }
 
 .project-body {
-  padding: 2px 6px 6px;
+  padding: 2px 4px 6px;
 }
 
 .running + .project-body {
@@ -712,28 +722,24 @@ kbd {
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: var(--faint);
+  /* Coloured by what a click does: green starts, red stops. Toned down at
+     rest so a long list of scripts is not a column of bright triangles. */
+  --action: var(--green);
+  color: color-mix(in srgb, var(--action) 72%, var(--panel));
   cursor: pointer;
 }
 
 .row:hover .run-btn {
-  color: var(--text);
+  color: var(--action);
 }
 
 .run-btn:hover {
-  background: color-mix(in srgb, var(--green) 18%, transparent);
-  color: var(--green) !important;
+  background: color-mix(in srgb, var(--action) 20%, transparent);
+  color: var(--action);
 }
 
-/* While running, green is the only colour on the row (its name). The stop
-   button stays neutral until the pointer is on it. */
 .run-btn-running {
-  color: var(--muted) !important;
-}
-
-.run-btn-running:hover {
-  background: color-mix(in srgb, var(--red) 20%, transparent);
-  color: var(--red) !important;
+  --action: var(--red);
 }
 
 .row-name {

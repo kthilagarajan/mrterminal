@@ -528,13 +528,13 @@ function initials(name: string): string {
 }
 
 /**
- * Show a project and unfold it, folding the others: the open card is the
- * project on screen. The chevron still unfolds any card on its own.
+ * Show a project and unfold it. Other cards keep their state: what the user
+ * unfolded stays unfolded until they fold it.
  */
 function openProject(id: string): void {
   const config = getState().config
   if (!config) return
-  patchConfig({ activeProjectId: id, projects: config.projects.map((p) => ({ ...p, expanded: p.id === id })) })
+  patchConfig({ activeProjectId: id, projects: config.projects.map((p) => (p.id === id ? { ...p, expanded: true } : p)) })
 }
 
 const DRAG_TYPE = 'application/x-mrterminal-project'
