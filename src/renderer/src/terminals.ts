@@ -4,6 +4,7 @@ import { Terminal, type ITheme } from '@xterm/xterm'
 import { getTheme, type Theme } from '@shared/themes'
 import type { TerminalDef } from '@shared/types'
 import { getState, setStatus } from './store'
+import { cwdFromOsc7 } from './terminalCwd'
 
 /**
  * A live terminal: an xterm.js view plus the shell process behind it in the
@@ -12,9 +13,11 @@ import { getState, setStatus } from './store'
  */
 export interface Runtime {
   def: TerminalDef
+  /** Live shell directory, separate from the command's original launch directory. */
+  readonly cwd: string
   term: Terminal
   el: HTMLDivElement
-  restart(): void
+  restart(cwd?: string): void
   /** Take keyboard focus, now or as soon as the terminal is on screen. */
   focus(): void
   /** Re-measure after something other than the panel size changed. */
@@ -100,13 +103,21 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
   let exited = false
   let wantsFocus = false
   let frame = 0
+  let cwd = def.cwd
 
-  const start = (runCommand: boolean): void => {
+  term.parser.registerOscHandler(7, (value) => {
+    const reported = cwdFromOsc7(value, window.api.platform)
+    if (reported !== null) cwd = reported
+    return true
+  })
+
+  const start = (runCommand: boolean, directory = def.cwd): void => {
     started = true
     exited = false
+    cwd = directory
     setStatus(id, { busy: false, process: '' })
     void window.api.pty
-      .create({ id, cwd: def.cwd, cols: term.cols, rows: term.rows, command: def.command, run: runCommand })
+      .create({ id, cwd: directory, cols: term.cols, rows: term.rows, command: def.command, run: runCommand })
       .then((result) => {
         if (!result.ok) {
           exited = true
@@ -164,6 +175,7 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
 
   const runtime: Runtime = {
     def,
+    get cwd() { return cwd },
     term,
     el,
     refit: layout,
@@ -171,9 +183,9 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       wantsFocus = !opened
       if (opened) term.focus()
     },
-    restart() {
+    restart(directory) {
       term.reset()
-      start(true)
+      start(true, directory)
       term.focus()
     },
     dispose() {

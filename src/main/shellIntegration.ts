@@ -17,6 +17,23 @@ import { configDir } from './config'
 
 const dir = join(configDir, 'shell')
 
+// OSC 7 lets presets capture a later `cd`, including paths with URI delimiters.
+// Keep this in the shell: spawning a helper at every prompt would slow it down.
+const CWD_REPORT = `__mrt_cwd() {
+  local __mrt_path=$PWD
+  __mrt_path=\${__mrt_path//\\%/%25}
+  __mrt_path=\${__mrt_path//\\\\/%5C}
+  __mrt_path=\${__mrt_path// /%20}
+  __mrt_path=\${__mrt_path//\\?/%3F}
+  __mrt_path=\${__mrt_path//\\#/%23}
+  __mrt_path=\${__mrt_path//$'\\a'/%07}
+  __mrt_path=\${__mrt_path//$'\\e'/%1B}
+  __mrt_path=\${__mrt_path//$'\\n'/%0A}
+  __mrt_path=\${__mrt_path//$'\\r'/%0D}
+  builtin printf '\\e]7;file://localhost%s\\a' "$__mrt_path"
+}
+`
+
 // zsh reads its startup files from $ZDOTDIR. Ours stand in for the user's,
 // source the real ones, add two hooks, and hand ZDOTDIR back.
 const ZSH_FILES: Record<string, string> = {
@@ -40,7 +57,8 @@ if [[ $HISTFILE == $MRT_ZDOTDIR/* ]]; then HISTFILE=$USER_ZDOTDIR/\${HISTFILE:t}
 if [[ -n $MRT_ZDOTDIR_UNSET && $USER_ZDOTDIR == $HOME ]]; then unset ZDOTDIR; else ZDOTDIR=$USER_ZDOTDIR; fi
 if [[ -f $USER_ZDOTDIR/.zshrc ]]; then . $USER_ZDOTDIR/.zshrc; fi
 
-__mrt_precmd() { builtin printf '\\e]133;D\\a\\e]133;A\\a' }
+${CWD_REPORT}
+__mrt_precmd() { builtin printf '\\e]133;D\\a\\e]133;A\\a'; __mrt_cwd }
 __mrt_preexec() { builtin printf '\\e]133;C\\a' }
 precmd_functions+=(__mrt_precmd)
 preexec_functions+=(__mrt_preexec)
@@ -58,11 +76,13 @@ for __mrt_f in ~/.bash_profile ~/.bash_login ~/.profile; do
   if [ -r "$__mrt_f" ]; then . "$__mrt_f"; break; fi
 done
 unset __mrt_f
+${CWD_REPORT}
 if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 4) )); then
   __mrt_prompt() { builtin printf '\\e]133;D\\a\\e]133;A\\a'; }
   PROMPT_COMMAND="__mrt_prompt\${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
   PS0='\\e]133;C\\a'"$PS0"
 fi
+PROMPT_COMMAND="\${PROMPT_COMMAND:+$PROMPT_COMMAND; }__mrt_cwd"
 `
 
 let written = false

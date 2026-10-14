@@ -33,7 +33,7 @@ function Welcome() {
         Point MrTerminal at a repository. It reads the scripts from <code>package.json</code>,{' '}
         <code>pyproject.toml</code>, <code>Makefile</code> and friends, so every command is one click away.
       </p>
-      <button className="btn btn-primary" onClick={() => void pickProject()}>
+      <button className="btn btn-primary" data-tooltip="Choose a project folder to add to your workspace" onClick={() => void pickProject()}>
         Add Project…
       </button>
     </div>
@@ -77,7 +77,8 @@ export function App() {
         <header className={config.sidebarHidden ? 'topbar topbar-inset' : 'topbar'}>
           <button
             className="icon-btn"
-            title="Toggle sidebar"
+            data-tooltip="Toggle sidebar"
+            aria-label="Toggle sidebar"
             onClick={() => patchConfig({ sidebarHidden: !config.sidebarHidden })}
           >
             <Icon name="sidebar" />
@@ -85,7 +86,8 @@ export function App() {
           {closedCount > 0 && (
             <button
               className="icon-btn"
-              title={`Reopen the tab or project you just closed (${window.api.platform === 'darwin' ? '⇧⌘T' : 'Ctrl+Shift+Z'})`}
+              data-tooltip={`Reopen the tab or project you just closed (${window.api.platform === 'darwin' ? '⇧⌘T' : 'Ctrl+Shift+Z'})`}
+              aria-label="Reopen the last closed terminal or project"
               onClick={reopenClosed}
             >
               <Icon name="undo" />
@@ -94,12 +96,12 @@ export function App() {
           {active && (
             <>
               <span className="topbar-name">{active.name}</span>
-              <button className="topbar-path" title="Open folder" onClick={() => window.api.reveal(active.path)}>
+              <button className="topbar-path" data-tooltip="Open folder" onClick={() => window.api.reveal(active.path)}>
                 {active.path.replace(window.api.home, '~')}
               </button>
               <span className="spacer" />
               <UpdateButton />
-              <button className="btn" onClick={() => getDock(active.id)?.openShell('auto')}>
+              <button className="btn" data-tooltip="Open a new terminal in this project's folder" onClick={() => getDock(active.id)?.openShell('auto')}>
                 <Icon name="plus" /> Terminal
               </button>
             </>

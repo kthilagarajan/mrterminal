@@ -81,7 +81,8 @@ export function customCwd(project: { path: string }, cwd: string | undefined): s
 function button(icon: IconName, title: string, onClick: (event: MouseEvent) => void): HTMLButtonElement {
   const el = document.createElement('button')
   el.className = 'icon-btn'
-  el.title = title
+  el.dataset.tooltip = title
+  el.setAttribute('aria-label', title)
   el.innerHTML = icons[icon]
   // Keep dockview from starting a tab drag or stealing terminal focus.
   el.addEventListener('pointerdown', (event) => event.stopPropagation())
@@ -140,10 +141,11 @@ class TerminalTab implements ITabRenderer {
       const state = status?.exitCode !== undefined ? 'exited' : status?.shown ? 'busy' : 'idle'
       dot.className = `dot dot-${state}`
       const def = getRuntime(id)?.def
-      this.element.title = [
+      this.element.dataset.tooltip = [
         def?.command ?? 'Shell',
         state === 'busy' ? `running: ${status?.process}` : state,
-        def?.cwd
+        getRuntime(id)?.cwd ?? def?.cwd,
+        'Double-click the name to rename this terminal'
       ].join('\n')
     }
     paint()
@@ -324,7 +326,10 @@ export class ProjectDock {
   /** The open terminals and their arrangement, for saving as a preset. */
   snapshot(): Pick<Preset, 'terminals' | 'layout'> {
     const terminals = getProject(this.projectId)?.terminals ?? []
-    return { terminals: terminals.map((t) => ({ ...t })), layout: terminals.length > 0 ? this.api.toJSON() : null }
+    return {
+      terminals: terminals.map((t) => ({ ...t, cwd: getRuntime(t.id)?.cwd ?? t.cwd })),
+      layout: terminals.length > 0 ? this.api.toJSON() : null
+    }
   }
 
   /**
@@ -337,16 +342,16 @@ export class ProjectDock {
     const open = getProject(this.projectId)?.terminals ?? []
     const taken = new Set<string>()
     const ids = new Map<string, string>()
-    const stopped: string[] = []
+    const stopped: { id: string; cwd: string }[] = []
 
     for (const terminal of preset.terminals) {
       const existing = open.find(
-        (o) => !taken.has(o.id) && o.command === terminal.command && o.cwd === terminal.cwd
+        (o) => !taken.has(o.id) && o.command === terminal.command && (getRuntime(o.id)?.cwd ?? o.cwd) === terminal.cwd
       )
       if (existing) {
         taken.add(existing.id)
         ids.set(terminal.id, existing.id)
-        if (existing.command && !getState().statuses[existing.id]?.busy) stopped.push(existing.id)
+        if (existing.command && !getState().statuses[existing.id]?.busy) stopped.push({ id: existing.id, cwd: terminal.cwd })
       } else {
         const def = { ...terminal, id: uid() }
         ids.set(terminal.id, def.id)
@@ -357,7 +362,7 @@ export class ProjectDock {
 
     this.applyLayout(preset.layout ? renameIds(preset.layout, ids) : null)
     this.saveLayout()
-    for (const id of stopped) getRuntime(id)?.restart()
+    for (const { id, cwd } of stopped) getRuntime(id)?.restart(cwd)
     this.focus(ids.get(preset.terminals[0]?.id))
   }
 

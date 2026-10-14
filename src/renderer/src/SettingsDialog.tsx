@@ -48,6 +48,8 @@ export function SettingsDialog({ settings }: { settings: Settings }) {
               <button
                 key={theme.id}
                 className={theme.id === settings.theme ? 'theme theme-active' : 'theme'}
+                data-tooltip={`Use the ${theme.name} theme`}
+                aria-pressed={theme.id === settings.theme}
                 style={{ background: theme.ui.bg, color: theme.ui.text, borderColor: theme.ui.border }}
                 onClick={() => appearance({ theme: theme.id })}
               >
@@ -70,6 +72,7 @@ export function SettingsDialog({ settings }: { settings: Settings }) {
               list="font-suggestions"
               spellCheck={false}
               placeholder="Default (Geist Mono)"
+              data-tooltip="Use an installed font, or leave empty for Geist Mono"
               value={settings.fontFamily ?? ''}
               onChange={(e) => appearance({ fontFamily: e.target.value || null })}
             />
@@ -83,6 +86,7 @@ export function SettingsDialog({ settings }: { settings: Settings }) {
             <span>Size</span>
             <input
               type="number"
+              data-tooltip="Terminal font size, from 9 to 24"
               min={9}
               max={24}
               value={settings.fontSize}
@@ -97,6 +101,7 @@ export function SettingsDialog({ settings }: { settings: Settings }) {
         <label className="field">
           <span>When MrTerminal starts</span>
           <select
+            data-tooltip="Choose how terminals and commands are restored when the app starts"
             value={settings.restoreOnLaunch}
             onChange={(e) => patchSettings({ restoreOnLaunch: e.target.value as RestoreMode })}
           >
@@ -114,6 +119,7 @@ export function SettingsDialog({ settings }: { settings: Settings }) {
             type="text"
             spellCheck={false}
             placeholder="Your login shell ($SHELL)"
+            data-tooltip="Path to the shell for new terminals; leave empty to use your login shell"
             value={settings.shell ?? ''}
             onChange={(e) => patchSettings({ shell: e.target.value.trim() || null })}
           />
@@ -133,11 +139,11 @@ export function SettingsDialog({ settings }: { settings: Settings }) {
               {update?.status === 'error' && ` · ${update.error}`}
             </span>
             {update?.status === 'available' ? (
-              <button className="btn btn-primary" onClick={() => window.api.update.install()}>
+              <button className="btn btn-primary" data-tooltip={update.canInstall ? 'Install the update and restart MrTerminal' : 'Open the latest release download page'} onClick={() => window.api.update.install()}>
                 {update.canInstall ? 'Update and restart' : 'Open download page'}
               </button>
             ) : (
-              <button className="btn" disabled={update?.status !== 'idle' && update?.status !== 'error'} onClick={() => void window.api.update.check()}>
+              <button className="btn" data-tooltip="Check for a newer version of MrTerminal" disabled={update?.status !== 'idle' && update?.status !== 'error'} onClick={() => void window.api.update.check()}>
                 Check for updates
               </button>
             )}
@@ -148,7 +154,7 @@ export function SettingsDialog({ settings }: { settings: Settings }) {
           Projects, layouts and these settings are stored in <code>~/.mrterminal/config.json</code>.
         </p>
         <div className="dialog-actions dialog-actions-end">
-          <button className="btn btn-primary" onClick={close}>
+          <button className="btn btn-primary" data-tooltip="Close settings; your changes are saved automatically" onClick={close}>
             Done
           </button>
         </div>

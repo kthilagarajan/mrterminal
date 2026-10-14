@@ -29,17 +29,17 @@ export function RestorePrompt({
           ))}
         </ul>
         <div className="dialog-actions">
-          <button className="btn btn-primary" autoFocus onClick={() => onChoose('resume', remember)}>
+          <button className="btn btn-primary" data-tooltip="Restore your terminals and layout, and run their saved commands" autoFocus onClick={() => onChoose('resume', remember)}>
             Resume and run commands
           </button>
-          <button className="btn" onClick={() => onChoose('layout', remember)} title="Reopen every terminal with its command typed but not started">
+          <button className="btn" onClick={() => onChoose('layout', remember)} data-tooltip="Reopen every terminal with its command typed but not started">
             Restore layout only
           </button>
-          <button className="btn" onClick={() => onChoose('fresh', remember)}>
+          <button className="btn" data-tooltip="Open your projects with no terminals from the previous session" onClick={() => onChoose('fresh', remember)}>
             Start fresh
           </button>
         </div>
-        <label className="check">
+        <label className="check" data-tooltip="Use this choice on future launches; you can change it in Settings">
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           Always do this, don't ask again
           <span className="muted"> (change it later in Settings)</span>

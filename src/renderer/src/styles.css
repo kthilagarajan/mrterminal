@@ -74,6 +74,29 @@ kbd {
 
 .icon {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(340px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--bg) 70%, transparent);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  -webkit-app-region: no-drag;
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
@@ -160,7 +183,7 @@ kbd {
   gap: 10px;
   height: 44px;
   flex: none;
-  padding: 0 12px;
+  padding: 1px 12px 0;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
   -webkit-app-region: drag;
@@ -259,15 +282,19 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   flex: none;
   /* Same height and rule as the top bar, so the two read as one title bar. */
   height: 44px;
-  padding: 0 10px 0 14px;
+  /* The bottom border takes one pixel; balance it so content centres at 22px. */
+  padding: 1px 8px 0 14px;
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
 }
 
 .sidebar-head > .icon-btn {
+  width: 28px;
+  height: 28px;
   -webkit-app-region: no-drag;
 }
 
@@ -285,11 +312,19 @@ kbd {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 28px;
   min-width: 0;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
+}
+
+.brand-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 20px;
 }
 
 .brand-mark {
@@ -322,6 +357,8 @@ kbd {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Keep cards centred and the same width when folding removes the scrollbar. */
+  scrollbar-gutter: stable both-edges;
   /* Room below the last card for the drop line. The top has none, so a
      pinned project title sits flush under the header. */
   padding: 0 8px 12px;

@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css'
 import 'dockview/dist/styles/dockview.css'
 import './styles.css'
 import { App } from './App'
+import { Tooltips } from './Tooltips'
 import { saveNow } from './store'
 import { connectPtyEvents, refitAll } from './terminals'
 
@@ -16,4 +17,4 @@ void document.fonts.load('13px "Geist Mono Variable"').then(refitAll)
 window.addEventListener('beforeunload', saveNow)
 document.documentElement.dataset.platform = window.api.platform
 
-createRoot(document.getElementById('root')!).render(<App />)
+createRoot(document.getElementById('root')!).render(<><App /><Tooltips /></>)

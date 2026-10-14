@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import * as pty from 'node-pty'
@@ -8,6 +8,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 const home = mkdtempSync(join(tmpdir(), 'mrterminal-shell-'))
 process.env.MRTERMINAL_HOME = join(home, 'config')
 const { lastMark, shellLaunch } = await import('./shellIntegration')
+writeFileSync(join(home, '.zshenv'), process.env.MRT_TEST_ZSHENV ?? '')
 
 afterAll(() => rmSync(home, { recursive: true, force: true }))
 
@@ -23,7 +24,7 @@ const bash = ['/bin/bash', '/usr/bin/bash', '/opt/homebrew/bin/bash'].find((p) =
 
 /** Run a shell the way the app does, type `lines` into it, return everything it printed. */
 function session(shell: string, env: Record<string, string>, lines: string[]): Promise<string> {
-  const launch = shellLaunch(shell, { PATH: process.env.PATH ?? '', TERM: 'xterm-256color', HOME: home, ...env })
+  const launch = shellLaunch(shell, { PATH: process.env.PATH ?? '', TERM: 'xterm-256color', HOME: home, LANG: process.env.LANG ?? 'en_US.UTF-8', ...env })
   const proc = pty.spawn(shell, launch.args, { cols: 120, rows: 24, cwd: home, env: launch.env })
   let output = ''
   proc.onData((data) => (output += data))
@@ -33,6 +34,18 @@ function session(shell: string, env: Record<string, string>, lines: string[]): P
 }
 
 const marks = (output: string): string => [...output.matchAll(/\x1b\]133;([ACD])/g)].map((m) => m[1]).join('')
+const directories = (output: string): string[] => [...output.matchAll(/\x1b\]7;([^\x07]*)\x07/g)]
+  .map((m) => decodeURIComponent(new URL(m[1]).pathname))
+
+for (const shell of [zsh, bash].filter((s): s is string => !!s)) {
+  it(`${shell} reports the current directory after cd, with special characters intact`, async () => {
+    const folder = join(home, 'directory %20 #? \\ ü')
+    mkdirSync(folder, { recursive: true })
+    const output = await session(shell, {}, [`cd '${folder}'`])
+    expect(directories(output)).toContain(home)
+    expect(directories(output).at(-1)).toBe(folder)
+  }, 15000)
+}
 
 describe('lastMark', () => {
   it('reports the most recent mark in a chunk', () => {

@@ -57,7 +57,8 @@ function IconButton({
   return (
     <button
       className={`icon-btn ${className}`}
-      title={title}
+      data-tooltip={title}
+      aria-label={title}
       disabled={disabled}
       onClick={(event) => {
         event.stopPropagation()
@@ -77,7 +78,8 @@ function RunButton({ running, onRun, onStop }: { running: boolean; onRun: (event
   return (
     <button
       className={running ? 'run-btn run-btn-running' : 'run-btn'}
-      title={running ? 'Stop (Ctrl-C)' : 'Run'}
+      data-tooltip={running ? 'Stop (Ctrl-C)' : 'Run'}
+      aria-label={running ? 'Stop (Ctrl-C)' : 'Run'}
       onClick={(event) => {
         event.stopPropagation()
         if (running && onStop) onStop()
@@ -102,7 +104,20 @@ function GroupHead({
   children?: React.ReactNode
 }) {
   return (
-    <div className="group-head" role="button" onClick={onToggle}>
+    <div
+      className="group-head"
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      data-tooltip={`${open ? 'Collapse' : 'Expand'} ${typeof label === 'string' ? label : 'section'}`}
+      onClick={onToggle}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          onToggle()
+        }
+      }}
+    >
       <span className={open ? 'chevron chevron-open' : 'chevron'}>
         <Icon name="chevron" />
       </span>
@@ -138,7 +153,7 @@ function ScriptRow({
     <div
       className={`row script script-${state}`}
       role="button"
-      title={`${script.command}\n${script.detail ?? ''}\n\n${hint}`}
+      data-tooltip={`${script.command}\n${script.detail ?? ''}\n\n${hint}`}
       onClick={onRun}
     >
       <RunButton running={state === 'running'} onRun={onRun} onStop={onStop} />
@@ -168,7 +183,7 @@ function RenameForm({ name, original, onDone }: { name: string; original: string
         spellCheck={false}
         value={value}
         placeholder={original}
-        title={`Shown here and on the terminal's tab. Clear it to go back to "${original}".`}
+        data-tooltip={`Shown here and on the terminal's tab. Clear it to go back to "${original}".`}
         onFocus={(e) => e.target.select()}
         onChange={(e) => setValue(e.target.value)}
         onBlur={() => onDone(value.trim())}
@@ -204,20 +219,20 @@ function CommandForm({ project, existing, onDone }: { project: Project; existing
 
   return (
     <form className="add-command" onSubmit={submit} onKeyDown={(e) => e.key === 'Escape' && onDone()}>
-      <input autoFocus placeholder="Command, e.g. docker compose up db" spellCheck={false} value={command} onChange={(e) => setCommand(e.target.value)} />
-      <input placeholder="Name (optional)" value={name} onChange={(e) => setName(e.target.value)} />
+      <input autoFocus placeholder="Command, e.g. docker compose up db" data-tooltip="Command to run in your terminal" spellCheck={false} value={command} onChange={(e) => setCommand(e.target.value)} />
+      <input placeholder="Name (optional)" data-tooltip="Name shown in the sidebar and terminal tab" value={name} onChange={(e) => setName(e.target.value)} />
       <input
         placeholder="Folder (optional), e.g. apps/api"
-        title="Where to run it: relative to the project, or an absolute path. Empty = project root."
+        data-tooltip="Where to run it: relative to the project, or an absolute path. Empty = project root."
         spellCheck={false}
         value={cwd}
         onChange={(e) => setCwd(e.target.value)}
       />
       <div className="add-command-actions">
-        <button type="button" className="btn" onClick={onDone}>
+        <button type="button" className="btn" data-tooltip="Discard changes to this command" onClick={onDone}>
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary" disabled={!command.trim()}>
+        <button type="submit" className="btn btn-primary" data-tooltip={existing ? 'Save changes to this command' : 'Add this command to the project'} disabled={!command.trim()}>
           {existing ? 'Save' : 'Add'}
         </button>
       </div>
@@ -242,7 +257,7 @@ function Running({ project, statuses }: { project: Project; statuses: Statuses }
               key={terminal.id}
               className="row script-running"
               role="button"
-              title={`Running: ${terminal.command ?? statuses[terminal.id]?.process}\n${terminal.cwd}\n\nClick to show it`}
+              data-tooltip={`Running: ${terminal.command ?? statuses[terminal.id]?.process}\n${terminal.cwd}\n\nClick to show it`}
               onClick={() => showTerminal(project.id, terminal.id)}
             >
               <RunButton running onRun={() => {}} onStop={() => stopTerminal(terminal.id)} />
@@ -447,7 +462,7 @@ function ProjectBody({ project, statuses }: { project: Project; statuses: Status
         })}
         {editing === 'new' && <CommandForm project={project} onDone={() => setEditing(null)} />}
         {customOpen && editing === null && project.customCommands.length === 0 && (
-          <button className="empty empty-btn" onClick={() => setEditing('new')}>
+          <button className="empty empty-btn" data-tooltip="Add a command to this project" onClick={() => setEditing('new')}>
             Add your own command for this project
           </button>
         )}
@@ -477,6 +492,7 @@ function ProjectMenu({ project, index, count, onClose }: { project: Project; ind
   const item = (label: string, action: () => void, options: { disabled?: boolean; danger?: boolean } = {}) => (
     <button
       className={options.danger ? 'menu-item menu-danger' : 'menu-item'}
+      data-tooltip={`${label.replace('…', '')}${label === 'Move up' || label === 'Move down' ? ' in the sidebar' : ''}`}
       disabled={options.disabled}
       onClick={(event) => {
         event.stopPropagation()
@@ -598,10 +614,19 @@ function ProjectNode({
       <div
         className="project-head"
         role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
         draggable
-        title={`${project.path}\n\nClick to ${active ? (expanded ? 'collapse' : 'expand') : 'show'} · drag to reorder`}
+        data-tooltip={`${project.path}\n\nClick to ${active ? (expanded ? 'collapse' : 'expand') : 'show'} · drag to reorder`}
         // Click shows the project; clicking the one already shown folds or unfolds it.
         onClick={() => (active ? toggle() : openProject(project.id))}
+        onKeyDown={(event) => {
+          if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault()
+            if (active) toggle()
+            else openProject(project.id)
+          }
+        }}
         onDragStart={(event) => {
           event.dataTransfer.setData(DRAG_TYPE, project.id)
           event.dataTransfer.effectAllowed = 'move'
@@ -615,7 +640,7 @@ function ProjectNode({
           <span className="project-path">{parentFolder(project.path)}</span>
         </span>
         {running > 0 && (
-          <span className="project-running" title={`${running} running`}>
+          <span className="project-running" data-tooltip={`${running} running`}>
             <span className="dot dot-busy" />
             {running}
           </span>
@@ -623,7 +648,7 @@ function ProjectNode({
         <span className={menu ? 'project-actions project-actions-open' : 'project-actions'}>
           {running > 0 && <IconButton icon="stop" title={`Stop all ${running} running`} onClick={() => stopAll(project)} />}
           <IconButton icon="refresh" className={refreshing ? 'spin' : ''} title="Re-read this project's scripts" onClick={refresh} />
-          <IconButton icon="more" title="More" onClick={() => setMenu(!menu)} />
+          <IconButton icon="more" title="Project options" onClick={() => setMenu(!menu)} />
         </span>
         <IconButton
           icon="chevron"
@@ -668,7 +693,7 @@ export function Sidebar({ config }: { config: Config }) {
           <span className="brand-mark">
             <Icon name="terminal" />
           </span>
-          MrTerminal
+          <span className="brand-name">MrTerminal</span>
         </span>
         <IconButton icon="plus" title="Add a project folder" onClick={() => void pickProject()} />
       </header>
@@ -685,10 +710,10 @@ export function Sidebar({ config }: { config: Config }) {
         ))}
         {config.projects.length === 0 && <p className="empty">No projects yet. Press + to add a folder.</p>}
       </div>
-      <button className="sidebar-foot" onClick={() => setState({ settingsOpen: true })}>
+      <button className="sidebar-foot" data-tooltip="Open settings for appearance, shells, and session restore" onClick={() => setState({ settingsOpen: true })}>
         <Icon name="gear" /> Settings
       </button>
-      <div className="sidebar-resize" onMouseDown={(e) => startResize(e, config.sidebarWidth)} />
+      <div className="sidebar-resize" data-tooltip="Drag to resize the sidebar" onMouseDown={(e) => startResize(e, config.sidebarWidth)} />
     </aside>
   )
 }

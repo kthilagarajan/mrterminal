@@ -20,7 +20,7 @@ function LayoutMap({ node, horizontal, labels }: { node: MapNode; horizontal: bo
   }
   const items = node.ids.map((id) => labels.get(id)).filter((x) => x !== undefined)
   return (
-    <div className="map-leaf" style={{ flexGrow: node.size }} title={items.length > 1 ? 'Tabs in the same pane' : undefined}>
+    <div className="map-leaf" style={{ flexGrow: node.size }} data-tooltip={items.length > 1 ? 'Tabs in the same pane' : undefined}>
       {items.map((item) => (
         <div className="map-item" key={item.n}>
           <b className="num">{item.n}</b>
@@ -70,7 +70,7 @@ export function PresetDialog({ project, existing, onClose }: { project: Project;
         <h2>{existing ? 'Edit preset' : 'New preset'}</h2>
         <label className="field">
           <span>Name</span>
-          <input autoFocus type="text" value={name} onChange={(e) => setName(e.target.value)} onFocus={(e) => e.target.select()} />
+          <input autoFocus type="text" data-tooltip="Name shown for this preset in the sidebar" value={name} onChange={(e) => setName(e.target.value)} onFocus={(e) => e.target.select()} />
         </label>
 
         <div className="field">
@@ -86,16 +86,16 @@ export function PresetDialog({ project, existing, onClose }: { project: Project;
 
         <ol className="preset-list">
           {terminals.map((t, i) => {
-            const folder = t.cwd.startsWith(`${project.path}/`) ? t.cwd.slice(project.path.length + 1) : ''
+            const folder = t.cwd === project.path ? '.' : t.cwd.startsWith(`${project.path}/`) ? t.cwd.slice(project.path.length + 1) : t.cwd
             return (
               <li key={t.id}>
                 <b className="num">{i + 1}</b>
                 <span>{t.title}</span>
                 <code>
                   {t.command ?? 'terminal, no command'}
-                  {folder && ` · in ${folder}/`}
+                  {` · in ${folder}`}
                 </code>
-                <button type="button" className="icon-btn" title="Remove from this preset" onClick={() => remove(t.id)}>
+                <button type="button" className="icon-btn" data-tooltip="Remove from this preset" aria-label={`Remove ${t.title} from this preset`} onClick={() => remove(t.id)}>
                   <Icon name="close" />
                 </button>
               </li>
@@ -108,7 +108,7 @@ export function PresetDialog({ project, existing, onClose }: { project: Project;
             type="button"
             className="btn"
             disabled={openNow === 0}
-            title="Replace this preset's terminals and layout with what is open in the project right now"
+            data-tooltip="Replace this preset's terminals and layout with what is open in the project right now"
             onClick={() => {
               const snapshot = getDock(project.id)?.snapshot()
               if (snapshot) setDraft(snapshot)
@@ -123,6 +123,7 @@ export function PresetDialog({ project, existing, onClose }: { project: Project;
             <button
               type="button"
               className="btn btn-danger"
+              data-tooltip="Delete this saved preset; open terminals keep running"
               onClick={() => {
                 editProject(project.id, (p) => ({ ...p, presets: p.presets.filter((x) => x.id !== existing.id) }))
                 onClose()
@@ -132,10 +133,10 @@ export function PresetDialog({ project, existing, onClose }: { project: Project;
             </button>
           )}
           <span className="spacer" />
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" data-tooltip="Close without saving this preset" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={!name.trim() || terminals.length === 0}>
+          <button type="submit" className="btn btn-primary" data-tooltip="Save these terminals, their folders, and their layout as a preset" disabled={!name.trim() || terminals.length === 0}>
             Save
           </button>
         </div>
