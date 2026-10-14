@@ -10,7 +10,8 @@ process.env.MRTERMINAL_HOME = join(home, 'config')
 const { lastMark, shellLaunch } = await import('./shellIntegration')
 writeFileSync(join(home, '.zshenv'), process.env.MRT_TEST_ZSHENV ?? '')
 
-afterAll(() => rmSync(home, { recursive: true, force: true }))
+// Killed shells may still be writing (history, sessions) as this runs; retry.
+afterAll(() => rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }))
 
 // MRT_TEST_ZSH lets a machine without a system zsh point at one.
 const zsh = [process.env.MRT_TEST_ZSH, '/bin/zsh', '/usr/bin/zsh'].find((p) => p && existsSync(p))

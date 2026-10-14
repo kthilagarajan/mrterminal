@@ -9,7 +9,8 @@ process.env.MRTERMINAL_HOME = join(home, 'config')
 process.env.HOME = home
 const { PtyManager } = await import('./pty')
 
-afterAll(() => rmSync(home, { recursive: true, force: true }))
+// Killed shells may still be writing (history, sessions) as this runs; retry.
+afterAll(() => rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }))
 
 const zsh = [process.env.MRT_TEST_ZSH, '/bin/zsh', '/usr/bin/zsh'].find((p) => p && existsSync(p))
 const bash = ['/bin/bash', '/usr/bin/bash', '/opt/homebrew/bin/bash'].find((p) => {
