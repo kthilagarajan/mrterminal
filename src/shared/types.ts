@@ -14,6 +14,8 @@ export interface Settings {
   fontFamily: string | null
   /** Id of a theme from `themes.ts`. */
   theme: string
+  /** List what is running under each project in the sidebar. */
+  showRunning: boolean
 }
 
 export interface TerminalDef {
@@ -77,6 +79,8 @@ export interface Config {
   activeProjectId: string | null
   sidebarWidth: number
   sidebarHidden: boolean
+  /** Project cards show only their name: no path, a smaller tile. */
+  sidebarCompact: boolean
   window?: WindowBounds
 }
 
@@ -156,6 +160,7 @@ export type MenuAction =
   | 'clear-terminal'
   | 'add-project'
   | 'toggle-sidebar'
+  | 'toggle-compact'
   | 'settings'
   | 'reopen-closed'
   | 'check-updates'
@@ -184,7 +189,8 @@ export const DEFAULT_SETTINGS: Settings = {
   shell: null,
   fontSize: 13,
   fontFamily: null,
-  theme: 'midnight'
+  theme: 'midnight',
+  showRunning: true
 }
 
 export function defaultConfig(): Config {
@@ -194,6 +200,7 @@ export function defaultConfig(): Config {
     projects: [],
     activeProjectId: null,
     sidebarWidth: 280,
-    sidebarHidden: false
+    sidebarHidden: false,
+    sidebarCompact: false
   }
 }

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import type { MenuState } from './ContextMenu'
 import { nextProjectColor, type Config, type Project, type ScriptGroup, type Settings, type TerminalDef, type UpdateState } from '@shared/types'
 
 export interface TermStatus {
@@ -27,6 +28,16 @@ export interface State {
   update: UpdateState | null
   /** How many closed tabs/projects can still be reopened. */
   closedCount: number
+  /** Cmd+Q was pressed once; show "press again to quit". */
+  quitArmed: boolean
+  /**
+   * Projects whose terminals have been started this session. A project is
+   * only loaded once it is shown, then stays loaded so its terminals keep
+   * running in the background.
+   */
+  opened: string[]
+  /** The open right-click / "..." menu. */
+  menu: MenuState | null
 }
 
 let state: State = {
@@ -37,7 +48,10 @@ let state: State = {
   scripts: {},
   settingsOpen: false,
   update: null,
-  closedCount: 0
+  closedCount: 0,
+  quitArmed: false,
+  opened: [],
+  menu: null
 }
 
 const listeners = new Set<() => void>()

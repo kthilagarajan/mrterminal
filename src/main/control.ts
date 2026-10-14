@@ -86,6 +86,9 @@ export function createControl(deps: ControlDeps): (method: string, params: Param
 
   /** Make sure there is a shell to type into, and that it is ready for input. */
   async function shell(t: TermInfo): Promise<void> {
+    // Its project has not been shown since launch, so the shell is not
+    // running yet; showing it starts it.
+    if (!ptys.info(t.id)) await renderer('show', { projectId: t.projectId, terminalId: t.id })
     if (t.shellExitCode !== undefined) {
       throw new ControlError(`The shell in "${t.title}" has exited. Start it again with: mrt restart ${t.id}`)
     }

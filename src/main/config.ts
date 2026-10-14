@@ -69,6 +69,7 @@ export function normalizeConfig(raw: unknown): Config {
       : (projects[0]?.id ?? null),
     sidebarWidth: typeof r.sidebarWidth === 'number' ? r.sidebarWidth : base.sidebarWidth,
     sidebarHidden: r.sidebarHidden === true,
+    sidebarCompact: r.sidebarCompact === true,
     window: r.window
   }
 }

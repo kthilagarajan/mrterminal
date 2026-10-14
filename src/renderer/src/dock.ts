@@ -11,6 +11,7 @@ import {
 } from 'dockview'
 import type { Preset, TerminalDef } from '@shared/types'
 import { rememberClosed } from './closed'
+import { openMenu } from './ContextMenu'
 import { icons, type IconName } from './icons'
 import {
   addTerminalDef,
@@ -19,6 +20,7 @@ import {
   getProject,
   getState,
   removeTerminalDef,
+  setState,
   subscribe,
   uid
 } from './store'
@@ -30,6 +32,22 @@ const docks = new Map<string, ProjectDock>()
 
 export function getDock(projectId: string): ProjectDock | undefined {
   return docks.get(projectId)
+}
+
+/** Callbacks for projects whose dock is still being created. */
+const waiting = new Map<string, ((dock: ProjectDock) => void)[]>()
+
+/**
+ * Do something with a project's terminals, loading the project first if it
+ * has not been shown yet this session. Its dock (and the terminals saved in
+ * it) is created once React mounts its workspace, a moment later.
+ */
+export function withDock(projectId: string, use: (dock: ProjectDock) => void): void {
+  const dock = docks.get(projectId)
+  if (dock) return use(dock)
+  waiting.set(projectId, [...(waiting.get(projectId) ?? []), use])
+  const { opened } = getState()
+  if (!opened.includes(projectId)) setState({ opened: [...opened, projectId] })
 }
 
 /** The dock that owns a terminal, wherever it is. */
@@ -145,7 +163,7 @@ class TerminalTab implements ITabRenderer {
         def?.command ?? 'Shell',
         state === 'busy' ? `running: ${status?.process}` : state,
         getRuntime(id)?.cwd ?? def?.cwd,
-        'Double-click the name to rename this terminal'
+        'Double-click the name to rename, right-click for more'
       ].join('\n')
     }
     paint()
@@ -157,6 +175,23 @@ class TerminalTab implements ITabRenderer {
     this.disposers.push(() => titleChange.dispose())
 
     title.addEventListener('dblclick', () => this.rename(title, api))
+    this.element.addEventListener('contextmenu', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const others = api.group.panels.filter((p) => p.id !== id)
+      openMenu({ x: event.clientX, y: event.clientY }, [
+        { label: 'Rename…', action: () => this.rename(title, api) },
+        { label: 'Restart', action: () => getRuntime(id)?.restart() },
+        null,
+        { label: 'Close', action: () => api.close() },
+        {
+          label: 'Close Others',
+          tooltip: 'Close the other tabs in this pane',
+          disabled: others.length === 0,
+          action: () => others.forEach((p) => p.api.close())
+        }
+      ])
+    })
 
     this.element.append(
       dot,
@@ -172,6 +207,7 @@ class TerminalTab implements ITabRenderer {
     input.value = api.title ?? ''
     input.size = Math.max(4, input.value.length)
     title.replaceWith(input)
+    input.focus()
     input.select()
     let done = false
     const finish = (commit: boolean): void => {
@@ -293,6 +329,10 @@ export class ProjectDock {
       window.clearTimeout(this.saveTimer)
       this.saveTimer = window.setTimeout(() => this.saveLayout(), 200)
     })
+
+    const queued = waiting.get(projectId) ?? []
+    waiting.delete(projectId)
+    for (const use of queued) use(this)
   }
 
   /** Rebuild the previous session: saved layout first, plain tabs as a fallback. */
@@ -429,6 +469,14 @@ export class ProjectDock {
     if (!panel) return
     holdFocus()
     panel.api.setActive()
+  }
+
+  /** Tab ids as they read on screen: panes top to bottom, left to right, then each pane's tabs. */
+  get orderedIds(): string[] {
+    const place = (group: DockviewGroupPanel): DOMRect => group.element.getBoundingClientRect()
+    return [...this.api.groups]
+      .sort((a, b) => place(a).top - place(b).top || place(a).left - place(b).left)
+      .flatMap((group) => group.panels.map((panel) => panel.id))
   }
 
   get activeId(): string | undefined {

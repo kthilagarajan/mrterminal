@@ -38,7 +38,7 @@ function LayoutMap({ node, horizontal, labels }: { node: MapNode; horizontal: bo
 export function PresetDialog({ project, existing, onClose }: { project: Project; existing?: Preset; onClose: () => void }) {
   const [name, setName] = useState(existing?.name ?? `Preset ${project.presets.length + 1}`)
   const [draft, setDraft] = useState<Pick<Preset, 'terminals' | 'layout'>>(
-    () => existing ?? getDock(project.id)?.snapshot() ?? { terminals: [], layout: null }
+    () => existing ?? getDock(project.id)?.snapshot() ?? { terminals: project.terminals, layout: project.layout }
   )
 
   const layout = parseLayout(draft.layout)

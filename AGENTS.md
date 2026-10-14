@@ -97,8 +97,18 @@ site/           the website (Astro + Tailwind, its own package.json); published
   entry to its open terminal, a preset entry to a terminal it can reuse, and an
   alias (`project.aliases`, see `aliasKey`) to a detected script. Use
   `renameCommand` in `dock.ts` to rename; it keeps sidebar and tab in sync.
-- **All projects stay mounted.** Inactive workspaces are `visibility: hidden`,
-  not `display: none`, so their terminals keep a real size and keep running.
+- **Projects load when first shown, then stay mounted.** At launch only the
+  active project's terminals start; another project's start when it is
+  shown (click, shortcut, or `mrt`), and `store.opened` keeps it loaded from
+  then on. Its dock does not exist before that: act on it through
+  `withDock` in `dock.ts`, which loads the project first. Inactive
+  workspaces are `visibility: hidden`, not `display: none`, so their
+  terminals keep a real size and keep running.
+- **Shortcuts live in `shared/shortcuts.ts`.** The menu binds them, Settings
+  lists them. Cmd+1…9 / Cmd+Shift+1…9 (tabs / projects) are caught in the
+  renderer (`handleKey`), before xterm sees the key.
+- **Menus** (right-click and "...") go through `openMenu` in
+  `ContextMenu.tsx`, one at a time, including from dockview's plain-DOM tabs.
 - **Themes** are data in `shared/themes.ts`; the UI reads CSS variables
   (`--bg`, `--panel`, `--accent`, ...). Do not hard-code colours in
   `styles.css`; derive tints with `color-mix`.

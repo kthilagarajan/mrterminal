@@ -52,7 +52,9 @@ const api = {
     respond: (id: number, response: { result?: unknown; error?: string }): void =>
       ipcRenderer.send('control:response', id, response)
   },
-  onMenu: (cb: (action: MenuAction) => void) => on('menu', cb)
+  onMenu: (cb: (action: MenuAction) => void) => on('menu', cb),
+  /** The first Cmd+Q: a second one within `ms` quits. */
+  onQuitArmed: (cb: (ms: number) => void) => on('quit:armed', cb)
 }
 
 export type Api = typeof api

@@ -20,6 +20,11 @@
     },
     "sidebarWidth": { "type": "number", "default": 280, "description": "Sidebar width in pixels." },
     "sidebarHidden": { "type": "boolean", "default": false },
+    "sidebarCompact": {
+      "type": "boolean",
+      "default": false,
+      "description": "Project cards show only their name, without the folder path."
+    },
     "window": {
       "type": "object",
       "description": "Window position and size; written by the app.",
@@ -48,6 +53,11 @@
           "description": "Absolute path of the shell to launch; null for the user's login shell."
         },
         "fontSize": { "type": "number", "default": 13 },
+        "showRunning": {
+          "type": "boolean",
+          "default": true,
+          "description": "List what is running under each project in the sidebar."
+        },
         "fontFamily": {
           "type": ["string", "null"],
           "default": null,

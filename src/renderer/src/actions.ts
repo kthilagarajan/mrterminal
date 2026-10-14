@@ -1,10 +1,11 @@
 import type { Config, DetectedScript, MenuAction, Project, RestoreMode, ScriptGroup } from '@shared/types'
 import { applyAppearance } from './appearance'
 import { rememberClosed, takeClosed } from './closed'
-import { findDock, getDock } from './dock'
+import { findDock, getDock, withDock, type ProjectDock } from './dock'
 import {
   addProject,
   aliasKey,
+  editProject,
   getProject,
   getState,
   patchConfig,
@@ -18,7 +19,14 @@ import { disposeRuntime, getRuntime, setCleanExitHandler } from './terminals'
 // A shell that exits cleanly (the user typed `exit`) takes its tab with it.
 setCleanExitHandler((id) => findDock(id)?.close(id))
 
+let quitTimer: number | undefined
+
 export async function boot(): Promise<void> {
+  window.api.onQuitArmed((ms) => {
+    setState({ quitArmed: true })
+    window.clearTimeout(quitTimer)
+    quitTimer = window.setTimeout(() => setState({ quitArmed: false }), ms)
+  })
   window.api.update.onState((update) => setState({ update }))
   void window.api.update.get().then((update) => setState({ update }))
   const config = await window.api.config.load()
@@ -69,7 +77,13 @@ export function stopAll(project: Project): void {
 /** Show a terminal: switch to its project and focus its tab. */
 export function showTerminal(projectId: string, id: string): void {
   selectProject(projectId)
-  getDock(projectId)?.focus(id)
+  withDock(projectId, (dock) => dock.focus(id))
+}
+
+/** A new display name; the folder keeps its own. */
+export function renameProject(id: string, name: string): void {
+  const trimmed = name.trim()
+  if (trimmed) editProject(id, (p) => ({ ...p, name: trimmed }))
 }
 
 export function deleteProject(project: Project): void {
@@ -107,11 +121,12 @@ export function reopenClosed(): void {
       restoreProject(item.project, item.index)
       return
     }
-    const dock = getDock(item.projectId)
+    const { projectId, def, layout } = item
     // Its project may have been removed since; then try the one before.
-    if (!dock || getProject(item.projectId)?.terminals.some((t) => t.id === item.def.id)) continue
-    selectProject(item.projectId)
-    dock.reopen(item.def, item.layout)
+    const project = getProject(projectId)
+    if (!project || project.terminals.some((t) => t.id === def.id)) continue
+    selectProject(projectId)
+    withDock(projectId, (dock) => dock.reopen(def, layout))
     return
   }
 }
@@ -127,18 +142,53 @@ export function scriptTitle(group: ScriptGroup | null, script: DetectedScript): 
  * again if it had stopped) instead of piling up duplicates.
  */
 export function runScript(project: Project, group: ScriptGroup | null, script: DetectedScript, forceNew: boolean): void {
-  const dock = getDock(project.id)
-  if (!dock) return
+  withDock(project.id, (dock) => {
+    const current = getProject(project.id)
+    if (current) runIn(dock, current, group, script, forceNew)
+  })
+}
+
+function runIn(dock: ProjectDock, project: Project, group: ScriptGroup | null, script: DetectedScript, forceNew: boolean): void {
   const existing = forceNew
     ? undefined
     : project.terminals.find((t) => t.command === script.command && t.cwd === script.cwd)
   if (existing) {
     dock.focus(existing.id)
+    // A terminal of a project that was only just loaded has not started yet;
+    // restarting it starts it, running its command.
     if (!getState().statuses[existing.id]?.busy) getRuntime(existing.id)?.restart()
     return
   }
   const alias = project.aliases[aliasKey(project, script.command, script.cwd)]
   dock.open({ title: alias ?? scriptTitle(group, script), command: script.command, cwd: script.cwd })
+}
+
+/** The nth (from 1) of a list; 9 means the last, as in browsers. */
+function nth<T>(list: T[], n: number): T | undefined {
+  return n === 9 ? list.at(-1) : list[n - 1]
+}
+
+/**
+ * Cmd+1…9 goes to a tab of the project on screen, Cmd+Shift+1…9 to a
+ * project (Ctrl outside macOS). Caught before xterm sees the key.
+ */
+export function handleKey(event: KeyboardEvent): void {
+  const mac = window.api.platform === 'darwin'
+  const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
+  const digit = /^Digit([1-9])$/.exec(event.code)
+  if (!modifier || event.altKey || !digit) return
+  event.preventDefault()
+  event.stopPropagation()
+  const n = Number(digit[1])
+  if (event.shiftKey) {
+    const project = nth(getState().config?.projects ?? [], n)
+    if (project) selectProject(project.id)
+    return
+  }
+  const project = activeProject()
+  const dock = project && getDock(project.id)
+  const id = dock && nth(dock.orderedIds, n)
+  if (id) dock.focus(id)
 }
 
 export function handleMenu(action: MenuAction): void {
@@ -162,6 +212,8 @@ export function handleMenu(action: MenuAction): void {
       return void pickProject()
     case 'toggle-sidebar':
       return patchConfig({ sidebarHidden: !getState().config?.sidebarHidden })
+    case 'toggle-compact':
+      return patchConfig({ sidebarCompact: !getState().config?.sidebarCompact })
     case 'reopen-closed':
       return reopenClosed()
     case 'settings':

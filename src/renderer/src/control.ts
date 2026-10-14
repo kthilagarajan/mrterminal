@@ -2,7 +2,7 @@ import type { Terminal } from '@xterm/xterm'
 import type { AppState, TermInfo } from '@shared/control'
 import type { DetectedScript, Project, ScriptGroup, TerminalDef } from '@shared/types'
 import { removeProjectNow, scriptTitle } from './actions'
-import { customCwd, folderName, getDock, findDock, renameCommand, type Placement, type ProjectDock } from './dock'
+import { customCwd, folderName, getDock, findDock, renameCommand, withDock, type Placement, type ProjectDock } from './dock'
 import { addProject, aliasKey, editProject, getProject, getState, patchConfig, refreshScripts, uid } from './store'
 import { getRuntime, holdFocus } from './terminals'
 
@@ -31,14 +31,18 @@ function owner(terminalId: unknown): { project: Project; def: TerminalDef } {
   throw new Failure('That terminal is gone.')
 }
 
-/** A project's dock exists once React has mounted its workspace. */
-async function dockFor(projectId: string): Promise<ProjectDock> {
-  for (let i = 0; i < 60; i++) {
-    const dock = getDock(projectId)
-    if (dock) return dock
-    await new Promise((r) => setTimeout(r, 50))
-  }
-  throw new Failure('The project did not open in time.')
+/**
+ * A project's dock, loading the project if it has not been shown yet. The
+ * dock exists once React has mounted its workspace.
+ */
+function dockFor(projectId: string): Promise<ProjectDock> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Failure('The project did not open in time.')), 3000)
+    withDock(projectId, (dock) => {
+      clearTimeout(timer)
+      resolve(dock)
+    })
+  })
 }
 
 /** Switch to the project and tab, leaving the keyboard alone. */
@@ -163,8 +167,8 @@ const handlers: Record<string, (p: Params) => unknown> = {
     const found = await findRunnable(p, String(target))
     const command = found?.script.command ?? String(target)
     const dir = (typeof cwd === 'string' ? cwd : undefined) ?? found?.script.cwd ?? p.path
-    const dock = await dockFor(p.id)
     await reveal(p.id)
+    const dock = await dockFor(p.id)
 
     // Like the sidebar: a command that already has a terminal reuses it.
     const existing = forceNew ? undefined : p.terminals.find((t) => t.command === command && t.cwd === dir)
@@ -202,7 +206,10 @@ const handlers: Record<string, (p: Params) => unknown> = {
 
   screen({ terminalId, mode, lines }) {
     const runtime = getRuntime(String(terminalId))
-    if (!runtime) throw new Failure('That terminal is gone.')
+    if (!runtime) {
+      owner(terminalId)
+      throw new Failure(`That terminal has not started: its project has not been opened yet. Start it with: mrt show ${terminalId}`)
+    }
     return bufferText(runtime.term, mode, lines)
   },
 

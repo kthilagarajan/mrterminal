@@ -2,6 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 type Hint = { element: HTMLElement; text: string }
 
+/** Hints wait for a deliberate hover; passing over a control shows nothing. */
+const DELAY_MS = 2000
+
 /** One overlay keeps hints out of the sidebar's scrolling and dockview's clipping. */
 export function Tooltips() {
   const [hint, setHint] = useState<Hint | null>(null)
@@ -28,12 +31,16 @@ export function Tooltips() {
       }, delay)
     }
     const over = (event: PointerEvent): void => {
-      if (event.pointerType !== 'touch') show(find(event.target), 350)
+      if (event.pointerType !== 'touch') show(find(event.target), DELAY_MS)
     }
     const out = (event: PointerEvent): void => {
       if (target && !(event.relatedTarget instanceof Node && target.contains(event.relatedTarget))) hide()
     }
-    const focus = (event: FocusEvent): void => show(find(event.target), 0)
+    // Keyboard focus only: a click also focuses what it lands on.
+    const focus = (event: FocusEvent): void => {
+      const element = find(event.target)
+      if (element?.matches(':focus-visible')) show(element, DELAY_MS)
+    }
     const key = (event: KeyboardEvent): void => { if (event.key === 'Escape') hide() }
     const scroll = (event: Event): void => {
       // Streaming terminal output must not dismiss a hint elsewhere in the UI.

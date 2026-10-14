@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react'
-import { applyRestore, boot, handleMenu, pickProject, reopenClosed } from './actions'
+import { displayKeys, keysFor } from '@shared/shortcuts'
+import { applyRestore, boot, handleKey, handleMenu, pickProject, reopenClosed } from './actions'
+import { ContextMenu } from './ContextMenu'
 import { getDock, ProjectDock } from './dock'
 import { Icon } from './Icon'
 import { RestorePrompt } from './RestorePrompt'
 import { SettingsDialog } from './SettingsDialog'
 import { Sidebar } from './Sidebar'
 import { UpdateButton } from './UpdateButton'
-import { patchConfig, refreshScripts, useStore } from './store'
+import { getState, patchConfig, refreshScripts, setState, useStore } from './store'
 
 function Workspace({ projectId, active }: { projectId: string; active: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -45,11 +47,26 @@ export function App() {
   const ready = useStore((s) => s.ready)
   const settingsOpen = useStore((s) => s.settingsOpen)
   const closedCount = useStore((s) => s.closedCount)
+  const quitArmed = useStore((s) => s.quitArmed)
+  const opened = useStore((s) => s.opened)
   const activeId = config?.activeProjectId ?? null
+
+  // A project's terminals start when it is first shown, not at launch, and
+  // keep running from then on.
+  useEffect(() => {
+    if (!ready || !activeId || getState().opened.includes(activeId)) return
+    setState({ opened: [...getState().opened, activeId] })
+  }, [ready, activeId])
 
   useEffect(() => {
     void boot()
-    return window.api.onMenu(handleMenu)
+    // Capture phase: a focused terminal would otherwise take the key.
+    window.addEventListener('keydown', handleKey, true)
+    const offMenu = window.api.onMenu(handleMenu)
+    return () => {
+      window.removeEventListener('keydown', handleKey, true)
+      offMenu()
+    }
   }, [])
 
   // Scripts change on disk (new branch, edited package.json); re-read them
@@ -65,8 +82,19 @@ export function App() {
     return () => window.removeEventListener('focus', refresh)
   }, [ready, projectIds])
 
+  const quitBanner = quitArmed && (
+    <div className="quit-banner" role="status">
+      Press <kbd>{displayKeys(keysFor('quit', window.api.platform), window.api.platform)}</kbd> again to quit
+    </div>
+  )
+
   if (!config) return null
-  if (!ready) return <RestorePrompt config={config} onChoose={applyRestore} />
+  if (!ready) return (
+    <>
+      <RestorePrompt config={config} onChoose={applyRestore} />
+      {quitBanner}
+    </>
+  )
 
   const active = config.projects.find((p) => p.id === activeId)
 
@@ -108,13 +136,17 @@ export function App() {
           )}
         </header>
         <div className="workspaces">
-          {config.projects.map((p) => (
-            <Workspace key={p.id} projectId={p.id} active={p.id === activeId} />
-          ))}
+          {config.projects
+            .filter((p) => p.id === activeId || opened.includes(p.id))
+            .map((p) => (
+              <Workspace key={p.id} projectId={p.id} active={p.id === activeId} />
+            ))}
           {config.projects.length === 0 && <Welcome />}
         </div>
       </main>
-      {settingsOpen && <SettingsDialog settings={config.settings} />}
+      {settingsOpen && <SettingsDialog settings={config.settings} compact={config.sidebarCompact} />}
+      <ContextMenu />
+      {quitBanner}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import type { Config, CustomCommand, DetectedScript, Preset, Project, ScriptGrou
 import {
   deleteProject,
   pickProject,
+  renameProject,
   runScript,
   scriptTitle,
   selectProject,
@@ -11,7 +12,8 @@ import {
   stopAll,
   stopTerminal
 } from './actions'
-import { customCwd, getDock, renameCommand } from './dock'
+import { below, openMenu, type MenuEntry } from './ContextMenu'
+import { customCwd, renameCommand, withDock } from './dock'
 import { Icon } from './Icon'
 import { PresetDialog } from './PresetDialog'
 import {
@@ -74,7 +76,7 @@ function IconButton({
  * The button at the start of a row. It always shows what a click on it will
  * do: start the thing, or, while it is running, stop it.
  */
-function RunButton({ running, onRun, onStop }: { running: boolean; onRun: (event: MouseEvent) => void; onStop?: () => void }) {
+function RunButton({ running, onRun, onStop }: { running: boolean; onRun: (copy: boolean) => void; onStop?: () => void }) {
   return (
     <button
       className={running ? 'run-btn run-btn-running' : 'run-btn'}
@@ -83,7 +85,7 @@ function RunButton({ running, onRun, onStop }: { running: boolean; onRun: (event
       onClick={(event) => {
         event.stopPropagation()
         if (running && onStop) onStop()
-        else onRun(event)
+        else onRun(event.altKey)
       }}
     >
       <Icon name={running ? 'stop' : 'play'} />
@@ -131,6 +133,8 @@ function ScriptRow({
   script,
   state,
   hint: customHint,
+  copies = true,
+  editLabel = 'Rename…',
   onRun,
   onStop,
   onEdit,
@@ -140,21 +144,39 @@ function ScriptRow({
   state: ScriptState
   /** Replaces the default "click to run" tooltip line. */
   hint?: string
-  onRun: (event: MouseEvent) => void
+  /** Whether Alt+click starts another copy (not for presets). */
+  copies?: boolean
+  editLabel?: string
+  /** @param copy start another terminal even if one runs it already */
+  onRun: (copy: boolean) => void
   onStop?: () => void
   onEdit?: () => void
   onRemove?: () => void
 }) {
+  const contextMenu = (event: MouseEvent): void => {
+    event.preventDefault()
+    event.stopPropagation()
+    const items: MenuEntry[] = [
+      { label: state === 'running' ? 'Show' : 'Run', action: () => onRun(false) },
+      copies && { label: 'Run Another Copy', action: () => onRun(true) },
+      state === 'running' && onStop && { label: 'Stop', action: onStop },
+      (onEdit || onRemove) && null,
+      onEdit && { label: editLabel, action: onEdit },
+      onRemove && { label: 'Delete', action: onRemove, danger: true }
+    ].filter((item): item is MenuEntry => item !== false && item !== undefined)
+    openMenu({ x: event.clientX, y: event.clientY }, items)
+  }
   const copy = `${window.api.platform === 'darwin' ? '⌥' : 'Alt+'}click for another copy`
   const hint =
     customHint ??
-    `${state === 'running' ? 'Running. Click to show it' : state === 'open' ? 'Click to run it again' : 'Click to run'} · ${copy}`
+    `${state === 'running' ? 'Running. Click to show it' : state === 'open' ? 'Click to run it again' : 'Click to run'} · ${copy} · right-click for more`
   return (
     <div
       className={`row script script-${state}`}
       role="button"
       data-tooltip={`${script.command}\n${script.detail ?? ''}\n\n${hint}`}
-      onClick={onRun}
+      onClick={(event) => onRun(event.altKey)}
+      onContextMenu={contextMenu}
     >
       <RunButton running={state === 'running'} onRun={onRun} onStop={onStop} />
       <span className="row-name">{script.name}</span>
@@ -259,6 +281,16 @@ function Running({ project, statuses }: { project: Project; statuses: Statuses }
               role="button"
               data-tooltip={`Running: ${terminal.command ?? statuses[terminal.id]?.process}\n${terminal.cwd}\n\nClick to show it`}
               onClick={() => showTerminal(project.id, terminal.id)}
+              onContextMenu={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                openMenu({ x: event.clientX, y: event.clientY }, [
+                  { label: 'Show', action: () => showTerminal(project.id, terminal.id) },
+                  { label: 'Stop', action: () => stopTerminal(terminal.id) },
+                  null,
+                  { label: 'Close Terminal', action: () => withDock(project.id, (dock) => dock.close(terminal.id)) }
+                ])
+              }}
             >
               <RunButton running onRun={() => {}} onStop={() => stopTerminal(terminal.id)} />
               <span className="row-name">{terminal.title}</span>
@@ -313,9 +345,11 @@ function Presets({ project, statuses }: { project: Project; statuses: Statuses }
                 ? 'All running. Click to put them back in their layout'
                 : 'Click to open them all in their layout'
             }
+            copies={false}
+            editLabel="Edit…"
             onRun={() => {
               selectProject(project.id)
-              getDock(project.id)?.launch(preset)
+              withDock(project.id, (dock) => dock.launch(preset))
             }}
             onStop={() => {
               for (const { t, state: s } of states) {
@@ -389,9 +423,9 @@ function ScriptGroupView({
               key={key}
               script={alias ? { ...script, name: alias, detail: script.command } : script}
               state={scriptState(project, statuses, script)}
-              onRun={(e) => {
+              onRun={(copy) => {
                 selectProject(project.id)
-                runScript(project, group, script, e.altKey)
+                runScript(project, group, script, copy)
               }}
               onStop={terminal && (() => stopTerminal(terminal.id))}
               onEdit={() => setRenaming(key)}
@@ -445,9 +479,10 @@ function ProjectBody({ project, statuses }: { project: Project; statuses: Status
               key={entry.id}
               script={script}
               state={scriptState(project, statuses, script)}
-              onRun={(e) => {
+              editLabel="Edit…"
+              onRun={(copy) => {
                 selectProject(project.id)
-                runScript(project, null, script, e.altKey)
+                runScript(project, null, script, copy)
               }}
               onStop={terminal && (() => stopTerminal(terminal.id))}
               onEdit={() => setEditing(entry.id)}
@@ -471,47 +506,49 @@ function ProjectBody({ project, statuses }: { project: Project; statuses: Status
   )
 }
 
-/** The "..." menu of a project. Closes on any click outside it. */
-function ProjectMenu({ project, index, count, onClose }: { project: Project; index: number; count: number; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const close = (event: globalThis.MouseEvent): void => {
-      if (!ref.current?.contains(event.target as Node)) onClose()
-    }
-    const key = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('mousedown', close, true)
-    window.addEventListener('keydown', key)
-    return () => {
-      window.removeEventListener('mousedown', close, true)
-      window.removeEventListener('keydown', key)
-    }
-  }, [onClose])
+/** The "..." menu of a project, also its right-click menu. */
+function projectMenu(
+  project: Project,
+  { index, count, running, rename, toggle, refresh }: { index: number; count: number; running: number; rename: () => void; toggle: () => void; refresh: () => void }
+): MenuEntry[] {
+  return [
+    { label: 'Rename…', action: rename, tooltip: 'Change the name shown here; the folder keeps its own' },
+    { label: project.expanded ? 'Collapse' : 'Expand', action: toggle },
+    { label: 'Re-read Scripts', action: refresh },
+    { label: 'Open Folder', action: () => window.api.reveal(project.path) },
+    ...(running > 0 ? [{ label: running === 1 ? 'Stop the Running Command' : `Stop All ${running} Running`, action: () => stopAll(project) }] : []),
+    null,
+    { label: 'Move Up', action: () => moveProject(project.id, index - 1), disabled: index === 0 },
+    { label: 'Move Down', action: () => moveProject(project.id, index + 1), disabled: index === count - 1 },
+    null,
+    { label: 'Remove Project…', action: () => deleteProject(project), danger: true }
+  ]
+}
 
-  const item = (label: string, action: () => void, options: { disabled?: boolean; danger?: boolean } = {}) => (
-    <button
-      className={options.danger ? 'menu-item menu-danger' : 'menu-item'}
-      data-tooltip={`${label.replace('…', '')}${label === 'Move up' || label === 'Move down' ? ' in the sidebar' : ''}`}
-      disabled={options.disabled}
-      onClick={(event) => {
-        event.stopPropagation()
-        onClose()
-        action()
-      }}
-    >
-      {label}
-    </button>
-  )
-
+/** Inline field for a project's name, in place of its name and path. */
+function ProjectRename({ project, onDone }: { project: Project; onDone: () => void }) {
+  const [value, setValue] = useState(project.name)
+  const finish = (commit: boolean): void => {
+    if (commit) renameProject(project.id, value)
+    onDone()
+  }
   return (
-    <div className="menu" ref={ref} onClick={(e) => e.stopPropagation()}>
-      {item('Move up', () => moveProject(project.id, index - 1), { disabled: index === 0 })}
-      {item('Move down', () => moveProject(project.id, index + 1), { disabled: index === count - 1 })}
-      {item('Open folder', () => window.api.reveal(project.path))}
-      <div className="menu-sep" />
-      {item('Remove project…', () => deleteProject(project), { danger: true })}
-    </div>
+    <input
+      className="project-rename"
+      autoFocus
+      spellCheck={false}
+      value={value}
+      aria-label="Project name"
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => finish(true)}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter') finish(true)
+        if (e.key === 'Escape') finish(false)
+      }}
+    />
   )
 }
 
@@ -543,15 +580,18 @@ function ProjectNode({
   index,
   count,
   active,
+  showRunning,
   statuses
 }: {
   project: Project
   index: number
   count: number
   active: boolean
+  showRunning: boolean
   statuses: Statuses
 }) {
   const [menu, setMenu] = useState(false)
+  const [renaming, setRenaming] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [dragging, setDragging] = useState(false)
   /** Where a dragged project would land relative to this one. */
@@ -570,6 +610,12 @@ function ProjectNode({
   const refresh = (): void => {
     setRefreshing(true)
     void refreshScripts(project.id).finally(() => window.setTimeout(() => setRefreshing(false), 400))
+  }
+
+  const showMenu = (at: Parameters<typeof openMenu>[0]): void => {
+    setMenu(true)
+    const items = projectMenu(project, { index, count, running, rename: () => setRenaming(true), toggle, refresh })
+    openMenu(at, items, () => setMenu(false))
   }
 
   const side = (event: DragEvent): 'before' | 'after' => {
@@ -615,10 +661,22 @@ function ProjectNode({
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        draggable
-        data-tooltip={`${project.path}\n\nClick to ${active ? (expanded ? 'collapse' : 'expand') : 'show'} · drag to reorder`}
+        draggable={!renaming}
+        data-tooltip={
+          renaming
+            ? undefined
+            : `${project.path}\n\nClick to ${active ? (expanded ? 'collapse' : 'expand') : 'show'} · drag to reorder · right-click for more`
+        }
         // Click shows the project; clicking the one already shown folds or unfolds it.
         onClick={() => (active ? toggle() : openProject(project.id))}
+        onDoubleClick={(event) => {
+          // On the name only: the rest of the head folds and unfolds.
+          if ((event.target as Element).closest('.project-name')) setRenaming(true)
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          if (!renaming) showMenu({ x: event.clientX, y: event.clientY })
+        }}
         onKeyDown={(event) => {
           if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
             event.preventDefault()
@@ -634,10 +692,14 @@ function ProjectNode({
         onDragEnd={() => setDragging(false)}
       >
         <span className="project-tile">{initials(project.name)}</span>
-        <span className="project-text">
-          <span className="project-name">{project.name}</span>
-          <span className="project-path">{`\u200e${shortPath(project.path)}\u200e`}</span>
-        </span>
+        {renaming ? (
+          <ProjectRename project={project} onDone={() => setRenaming(false)} />
+        ) : (
+          <span className="project-text">
+            <span className="project-name">{project.name}</span>
+            <span className="project-path">{`\u200e${shortPath(project.path)}\u200e`}</span>
+          </span>
+        )}
         {running > 0 && (
           <span className="project-running" data-tooltip={`${running} running`}>
             <span className="dot dot-busy" />
@@ -647,7 +709,7 @@ function ProjectNode({
         <span className={menu ? 'project-actions project-actions-open' : 'project-actions'}>
           {running > 0 && <IconButton icon="stop" title={`Stop all ${running} running`} onClick={() => stopAll(project)} />}
           <IconButton icon="refresh" className={refreshing ? 'spin' : ''} title="Re-read this project's scripts" onClick={refresh} />
-          <IconButton icon="more" title="Project options" onClick={() => setMenu(!menu)} />
+          <IconButton icon="more" title="Project options" onClick={(event) => showMenu(below(event.currentTarget))} />
         </span>
         <IconButton
           icon="chevron"
@@ -655,9 +717,8 @@ function ProjectNode({
           title={expanded ? 'Collapse' : 'Expand without switching to it'}
           onClick={toggle}
         />
-        {menu && <ProjectMenu project={project} index={index} count={count} onClose={() => setMenu(false)} />}
       </div>
-      <Running project={project} statuses={statuses} />
+      {showRunning && <Running project={project} statuses={statuses} />}
       {expanded && (
         <div className="project-body">
           <ProjectBody project={project} statuses={statuses} />
@@ -686,7 +747,7 @@ export function Sidebar({ config }: { config: Config }) {
   const statuses = useStore((s) => s.statuses)
 
   return (
-    <aside className="sidebar" style={{ width: config.sidebarWidth }}>
+    <aside className={config.sidebarCompact ? 'sidebar sidebar-compact' : 'sidebar'} style={{ width: config.sidebarWidth }}>
       <header className="sidebar-head">
         <span className="brand">
           <span className="brand-mark">
@@ -694,7 +755,15 @@ export function Sidebar({ config }: { config: Config }) {
           </span>
           <span className="brand-name">MrTerminal</span>
         </span>
-        <IconButton icon="plus" title="Add a project folder" onClick={() => void pickProject()} />
+        <span className="sidebar-head-actions">
+          <IconButton
+            icon="compact"
+            className={config.sidebarCompact ? 'icon-btn-on' : ''}
+            title={config.sidebarCompact ? 'Show project paths' : 'Compact: hide project paths'}
+            onClick={() => patchConfig({ sidebarCompact: !config.sidebarCompact })}
+          />
+          <IconButton icon="plus" title="Add a project folder" onClick={() => void pickProject()} />
+        </span>
       </header>
       <div className="tree">
         {config.projects.map((project, index) => (
@@ -704,6 +773,7 @@ export function Sidebar({ config }: { config: Config }) {
             index={index}
             count={config.projects.length}
             active={project.id === config.activeProjectId}
+            showRunning={config.settings.showRunning}
             statuses={statuses}
           />
         ))}

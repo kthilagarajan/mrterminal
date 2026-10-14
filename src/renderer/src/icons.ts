@@ -20,6 +20,7 @@ export const icons = {
   more: svg('<circle cx="3.5" cy="8" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor"/>'),
   undo: svg('<path d="M5.5 3L2.5 6l3 3"/><path d="M2.5 6h6.5a4 4 0 0 1 0 8H6"/>'),
   chevron: svg('<path d="M6 4l4 4-4 4"/>', 12),
+  compact: svg('<path d="M3 4.5h10M3 8h10M3 11.5h10"/>'),
   sidebar: svg('<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3v10"/>'),
   terminal: svg('<path d="M3 5l3 3-3 3M8 11h5"/>')
 }

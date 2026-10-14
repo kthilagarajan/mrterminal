@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell, type Men
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import type { Config, MenuAction, PtyCreateOptions } from '@shared/types'
+import { keysFor, type ShortcutId } from '@shared/shortcuts'
 import { getTheme } from '@shared/themes'
 import type { Server } from 'node:net'
 import { ConfigStore, socketPath } from './config'
@@ -109,15 +110,31 @@ function createWindow(): void {
   }
 }
 
+// Quitting kills every terminal and whatever runs in it, and Cmd+Q sits
+// next to Cmd+W and Cmd+A. The first press only shows a banner; a second
+// one within the window quits.
+const QUIT_CONFIRM_MS = 2000
+let quitArmedAt = 0
+
+function requestQuit(): void {
+  if (!win || win.isDestroyed() || Date.now() - quitArmedAt < QUIT_CONFIRM_MS) return app.quit()
+  quitArmedAt = Date.now()
+  send('quit:armed', QUIT_CONFIRM_MS)
+}
+
 function buildMenu(): void {
-  // Ctrl+W / Ctrl+D / Ctrl+K mean something to the shell, so outside macOS
-  // the terminal shortcuts take Shift as well.
-  const key = (mac: string, other: string): string => (isMac ? mac : other)
-  const item = (label: string, accelerator: string, action: MenuAction): MenuItemConstructorOptions => ({
+  const key = (id: ShortcutId): string => keysFor(id, process.platform)
+  const item = (label: string, action: MenuAction & ShortcutId): MenuItemConstructorOptions => ({
     label,
-    accelerator: accelerator || undefined,
+    accelerator: key(action),
     click: () => send('menu', action)
   })
+
+  const quit: MenuItemConstructorOptions = {
+    label: isMac ? `Quit ${app.name}` : 'Quit',
+    accelerator: key('quit'),
+    click: requestQuit
+  }
 
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
@@ -126,15 +143,15 @@ function buildMenu(): void {
             label: app.name,
             submenu: [
               { role: 'about' },
-              item('Check for Updates…', '', 'check-updates'),
+              { label: 'Check for Updates…', click: () => send('menu', 'check-updates') },
               { type: 'separator' },
-              item('Settings…', 'Cmd+,', 'settings'),
+              item('Settings…', 'settings'),
               { type: 'separator' },
               { role: 'hide' },
               { role: 'hideOthers' },
               { role: 'unhide' },
               { type: 'separator' },
-              { role: 'quit' }
+              quit
             ]
           } as MenuItemConstructorOptions
         ]
@@ -142,32 +159,33 @@ function buildMenu(): void {
     {
       label: 'Shell',
       submenu: [
-        item('New Terminal', key('Cmd+T', 'Ctrl+Shift+T'), 'new-terminal'),
-        item('Split Right', key('Cmd+D', 'Ctrl+Shift+D'), 'split-right'),
-        item('Split Down', key('Cmd+Shift+D', 'Ctrl+Shift+E'), 'split-down'),
+        item('New Terminal', 'new-terminal'),
+        item('Split Right', 'split-right'),
+        item('Split Down', 'split-down'),
         { type: 'separator' },
-        item('Restart Terminal', key('Cmd+Shift+R', 'Ctrl+Shift+R'), 'restart-terminal'),
-        item('Clear', key('Cmd+K', 'Ctrl+Shift+K'), 'clear-terminal'),
-        item('Close Terminal', key('Cmd+W', 'Ctrl+Shift+W'), 'close-terminal'),
-        item('Reopen Closed Tab or Project', key('Cmd+Shift+T', 'Ctrl+Shift+Z'), 'reopen-closed'),
+        item('Restart Terminal', 'restart-terminal'),
+        item('Clear', 'clear-terminal'),
+        item('Close Terminal', 'close-terminal'),
+        item('Reopen Closed Tab or Project', 'reopen-closed'),
         { type: 'separator' },
-        item('Add Project…', 'CmdOrCtrl+O', 'add-project'),
+        item('Add Project…', 'add-project'),
         { label: "Install 'mrt' Command…", click: () => void installCli(win) },
-        ...(isMac ? [] : [{ type: 'separator' } as const, item('Settings…', 'Ctrl+,', 'settings'), { role: 'quit' } as const])
+        ...(isMac ? [] : [{ type: 'separator' } as const, item('Settings…', 'settings'), quit])
       ]
     },
     {
       label: 'Edit',
       submenu: [
-        { role: 'copy', accelerator: key('Cmd+C', 'Ctrl+Shift+C') },
-        { role: 'paste', accelerator: key('Cmd+V', 'Ctrl+Shift+V') },
-        { role: 'selectAll', accelerator: key('Cmd+A', 'Ctrl+Shift+A') }
+        { role: 'copy', accelerator: key('copy') },
+        { role: 'paste', accelerator: key('paste') },
+        { role: 'selectAll', accelerator: key('select-all') }
       ]
     },
     {
       label: 'View',
       submenu: [
-        item('Toggle Sidebar', 'CmdOrCtrl+B', 'toggle-sidebar'),
+        item('Toggle Sidebar', 'toggle-sidebar'),
+        item('Toggle Compact Sidebar', 'toggle-compact'),
         { type: 'separator' },
         { role: 'togglefullscreen' },
         { role: 'toggleDevTools' }
