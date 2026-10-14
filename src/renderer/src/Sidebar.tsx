@@ -516,9 +516,10 @@ function ProjectMenu({ project, index, count, onClose }: { project: Project; ind
 }
 
 /** `~/code` for `/Users/me/code/storefront`: the name already says the rest. */
-function parentFolder(path: string): string {
-  const parent = path.replace(/[\\/]+$/, '').replace(/[\\/][^\\/]*$/, '') || '/'
-  return parent.startsWith(window.api.home) ? `~${parent.slice(window.api.home.length)}` : parent
+function shortPath(path: string): string {
+  const full = path.replace(/[\\/]+$/, '') || '/'
+  const home = window.api.home
+  return full === home || full.startsWith(`${home}/`) ? `~${full.slice(home.length)}` : full
 }
 
 /** `OA` for `orders-api`, `S` for `storefront`: what goes on the project's tile. */
@@ -635,7 +636,7 @@ function ProjectNode({
         <span className="project-tile">{initials(project.name)}</span>
         <span className="project-text">
           <span className="project-name">{project.name}</span>
-          <span className="project-path">{parentFolder(project.path)}</span>
+          <span className="project-path">{`\u200e${shortPath(project.path)}\u200e`}</span>
         </span>
         {running > 0 && (
           <span className="project-running" data-tooltip={`${running} running`}>

@@ -21,6 +21,11 @@ mac:
     - target: zip
       arch: [arm64, x64]
   darkModeSupport: true
+  # The `mrt` command: a launcher that runs out/main/cli.js on the app's own
+  # Node. "Install 'mrt' Command…" links /usr/local/bin/mrt to it.
+  extraResources:
+    - from: resources/bin
+      to: bin
   artifactName: ${productName}-${version}-${arch}.${ext}
   # No Apple Developer certificate yet: sign ad hoc so the app runs on Apple
   # silicon. The hardened runtime would then refuse to load node-pty.

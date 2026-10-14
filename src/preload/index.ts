@@ -46,6 +46,12 @@ const api = {
     install: (): void => ipcRenderer.send('update:install'),
     onState: (cb: (state: UpdateState) => void) => on('update:state', cb)
   },
+  control: {
+    onRequest: (cb: (request: { id: number; method: string; params: Record<string, unknown> }) => void) =>
+      on('control:request', cb),
+    respond: (id: number, response: { result?: unknown; error?: string }): void =>
+      ipcRenderer.send('control:response', id, response)
+  },
   onMenu: (cb: (action: MenuAction) => void) => on('menu', cb)
 }
 

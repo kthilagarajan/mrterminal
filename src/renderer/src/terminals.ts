@@ -3,7 +3,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { Terminal, type ITheme } from '@xterm/xterm'
 import { getTheme, type Theme } from '@shared/themes'
 import type { TerminalDef } from '@shared/types'
-import { getState, setStatus } from './store'
+import { getState, setShellCwd, setStatus } from './store'
 import { cwdFromOsc7 } from './terminalCwd'
 
 /**
@@ -17,7 +17,7 @@ export interface Runtime {
   readonly cwd: string
   term: Terminal
   el: HTMLDivElement
-  restart(cwd?: string): void
+  restart(cwd?: string, focus?: boolean): void
   /** Take keyboard focus, now or as soon as the terminal is on screen. */
   focus(): void
   /** Re-measure after something other than the panel size changed. */
@@ -26,6 +26,17 @@ export interface Runtime {
 }
 
 const runtimes = new Map<string, Runtime>()
+let holdFocusUntil = 0
+
+/**
+ * Show something without taking the keyboard away from the user. `mrt` brings
+ * the terminals an agent works in on screen, but the user may be typing in
+ * another one; switching tabs and projects focuses a terminal, and those
+ * focus calls are ignored for a moment.
+ */
+export function holdFocus(ms = 400): void {
+  holdFocusUntil = performance.now() + ms
+}
 const exitHandlers = new Map<string, (exitCode: number) => void>()
 let onCleanExit: (id: string) => void = () => {}
 
@@ -107,11 +118,15 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
 
   term.parser.registerOscHandler(7, (value) => {
     const reported = cwdFromOsc7(value, window.api.platform)
-    if (reported !== null) cwd = reported
+    if (reported !== null) {
+      cwd = reported
+      setShellCwd(id, reported)
+    }
     return true
   })
 
-  const start = (runCommand: boolean, directory = def.cwd): void => {
+  // A plain shell restarts where it was left; a command where it was launched.
+  const start = (runCommand: boolean, directory = def.command ? def.cwd : cwd): void => {
     started = true
     exited = false
     cwd = directory
@@ -180,13 +195,14 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
     el,
     refit: layout,
     focus() {
+      if (performance.now() < holdFocusUntil) return
       wantsFocus = !opened
       if (opened) term.focus()
     },
-    restart(directory) {
+    restart(directory, focus = true) {
       term.reset()
       start(true, directory)
-      term.focus()
+      if (focus) term.focus()
     },
     dispose() {
       runtimes.delete(id)

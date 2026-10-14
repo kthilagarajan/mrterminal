@@ -1,0 +1,60 @@
+---
+import Docs from '../../layouts/Docs.astro'
+const base = import.meta.env.BASE_URL
+---
+
+<Docs
+  title="Getting started"
+  description="Install MrTerminal on macOS, add a project, run its scripts in one click, arrange terminals, save presets and restore sessions."
+>
+  <h1>Getting started</h1>
+  <p>
+    MrTerminal is a desktop app that holds the terminals your projects need. It isn't a new shell and it isn't a
+    terminal emulator: each terminal is your own login shell, drawn with xterm.js and arranged in splits and tabs.
+  </p>
+
+  <h2>Install</h2>
+  <p>
+    Download the <code>.dmg</code> from the <a href="https://github.com/kthilagarajan/mrterminal/releases/latest"
+      >latest release</a
+    >. Use <code>arm64</code> for Apple silicon and <code>x64</code> for Intel. Drag MrTerminal to Applications.
+    The app isn't notarized by Apple yet, so macOS blocks the first launch. Clear the download flag once:
+  </p>
+  <pre><code>xattr -cr /Applications/MrTerminal.app</code></pre>
+  <p>
+    MrTerminal checks for updates when it starts and every few hours. When an update is ready, an <strong>Update to
+    x.y.z</strong> button appears in the top bar.
+  </p>
+
+  <h2>Add a project</h2>
+  <p>
+    Press <kbd>⌘O</kbd> or the <strong>+</strong> next to the logo and pick a repository. MrTerminal reads the
+    scripts it defines (<code>package.json</code>, <code>Makefile</code>, <code>pyproject.toml</code>,
+    <code>justfile</code>, <code>Procfile</code>, <code>compose.yaml</code>, <code>Cargo.toml</code>,
+    <code>go.mod</code>, and the same files in sub-folders) and lists them on the project's card.
+  </p>
+
+  <h2>Run, stop, arrange</h2>
+  <ul>
+    <li>A green ▶ starts a script in its own terminal. A red ■ stops it, as Ctrl-C would.</li>
+    <li>Running a script that already has a terminal shows that terminal instead of opening another one.</li>
+    <li>A project card lists what is running in it right now, even when the card is folded.</li>
+    <li>Drag tabs to split, stack and resize. Each project keeps its own layout.</li>
+    <li>Add commands that aren't in any script file under <strong>Custom commands</strong>.</li>
+    <li><kbd>⇧⌘T</kbd> reopens the tab or project you just closed.</li>
+  </ul>
+
+  <h2>Presets and sessions</h2>
+  <p>
+    A preset is a set of terminals and their layout that opens in one click. Arrange what a task needs, then press
+    <strong>+</strong> next to Presets. When you quit and reopen, MrTerminal asks whether to resume your terminals
+    and run their commands again, restore only the layout, or start fresh. You can set a default in Settings.
+  </p>
+
+  <h2>From the command line</h2>
+  <p>
+    Choose <strong>Shell → Install 'mrt' Command…</strong> to control MrTerminal from any shell, or let your coding
+    agent do it. See the <a href={`${base}docs/cli/`}>command reference</a> and
+    <a href={`${base}docs/agents/`}>coding agents</a>.
+  </p>
+</Docs>

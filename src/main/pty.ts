@@ -2,8 +2,23 @@ import { existsSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename } from 'node:path'
 import * as pty from 'node-pty'
-import type { PtyCreateOptions, PtyExit, PtyStatus } from '@shared/types'
-import { lastMark, shellLaunch } from './shellIntegration'
+import type { CommandResult, PtyCreateOptions, PtyExit, PtyStatus } from '@shared/types'
+import { plainText } from './plainText'
+import { parseMarks, shellLaunch } from './shellIntegration'
+
+/** One command line the shell ran, located in the session's output. */
+interface CommandRecord {
+  /** Increases across all terminals, so "commands after now" is one comparison. */
+  seq: number
+  /** Output offsets (see `Session.output`) where its output starts and ends. */
+  start: number
+  end?: number
+  exitCode?: number
+}
+
+/** How much raw output is kept per terminal for `mrt read --command` and `mrt wait`. */
+const OUTPUT_LIMIT = 1_000_000
+const COMMAND_LIMIT = 100
 
 interface Session {
   proc: pty.IPty
@@ -20,6 +35,18 @@ interface Session {
   entered: boolean
   /** End of the previous chunk, in case a mark was split across two. */
   tail: string
+  /** Output offset where the last mark found ended; marks before it are already counted. */
+  markedUpTo: number
+  /** The most recent output; its first character is output offset `outputStart`. */
+  output: string
+  outputStart: number
+  commands: CommandRecord[]
+  /** Seen busy since the last line was entered; the fallback for shells without marks. */
+  sawBusy: boolean
+  /** The shell has drawn its first prompt (or, without marks, has had time to). */
+  prompted: boolean
+  /** A command is about to be typed on start and has not been seen starting yet. */
+  starting: boolean
   /** Pending "type the command once the prompt is up" timers. */
   timers: NodeJS.Timeout[]
 }
@@ -37,9 +64,9 @@ export interface PtyEvents {
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'fish', 'dash', 'ksh', 'tcsh', 'csh', 'nu', 'pwsh', 'xonsh', 'elvish', 'login'])
 
 /** Variables that describe *our* process and would confuse tools in the shell. */
-const STRIP_ENV = [/^npm_/, /^ELECTRON_/, /^VITE_/, /^NODE_ENV$/, /^INIT_CWD$/, /^MRTERMINAL_/]
+const STRIP_ENV = [/^npm_/, /^ELECTRON_/, /^VITE_/, /^NODE_ENV$/, /^INIT_CWD$/, /^MRTERMINAL_/, /^MRT_/]
 
-function shellEnv(): Record<string, string> {
+function shellEnv(id: string): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined || STRIP_ENV.some((re) => re.test(key))) continue
@@ -48,6 +75,9 @@ function shellEnv(): Record<string, string> {
   env.TERM = 'xterm-256color'
   env.COLORTERM = 'truecolor'
   env.TERM_PROGRAM = 'MrTerminal'
+  // Lets `mrt` (and an agent) running inside a terminal know which one it is.
+  env.MRT_TERMINAL_ID = id
+  if (process.env.MRTERMINAL_HOME) env.MRTERMINAL_HOME = process.env.MRTERMINAL_HOME
   return env
 }
 
@@ -74,6 +104,7 @@ export class PtyManager {
   private sessions = new Map<string, Session>()
   private poll: NodeJS.Timeout | null = null
   private shuttingDown = false
+  private seq = 0
 
   constructor(
     private events: PtyEvents,
@@ -90,7 +121,7 @@ export class PtyManager {
     try {
       // A login shell, so PATH (nvm, Homebrew, pyenv...) matches the user's
       // normal terminal even when the app was launched from Finder.
-      const launch = shellLaunch(shell, shellEnv())
+      const launch = shellLaunch(shell, shellEnv(opts.id))
       proc = pty.spawn(shell, launch.args, {
         name: 'xterm-256color',
         cols: Math.max(2, opts.cols),
@@ -110,6 +141,13 @@ export class PtyManager {
       integrated: false,
       entered: false,
       tail: '',
+      markedUpTo: 0,
+      output: '',
+      outputStart: 0,
+      commands: [],
+      sawBusy: false,
+      prompted: false,
+      starting: !!(opts.command && opts.run && cwdOk),
       timers: []
     }
     this.sessions.set(opts.id, session)
@@ -125,12 +163,7 @@ export class PtyManager {
     proc.onData((data) => {
       if (this.sessions.get(opts.id) !== session) return
       this.events.data(opts.id, data)
-      const mark = lastMark(session.tail + data)
-      session.tail = data.slice(-12)
-      if (mark) {
-        session.integrated = true
-        this.setStatus(opts.id, session, mark === 'C', session.process)
-      }
+      this.record(opts.id, session, data)
       if (!sawOutput) {
         sawOutput = true
         onFirstOutput()
@@ -149,11 +182,13 @@ export class PtyManager {
     const type = (): void => {
       if (typed || !opts.command || !cwdOk || this.sessions.get(opts.id) !== session) return
       typed = true
-      if (opts.run) session.entered = true
+      if (opts.run) this.entered(session)
       proc.write(opts.run ? `${opts.command}\r` : opts.command)
     }
     const onFirstOutput = (): void => {
       if (opts.command) session.timers.push(setTimeout(type, 250))
+      // Shells without marks never announce their prompt; give them a moment.
+      session.timers.push(setTimeout(() => (session.prompted = true), 1500))
     }
     if (opts.command) session.timers.push(setTimeout(type, 3000))
 
@@ -164,8 +199,171 @@ export class PtyManager {
   write(id: string, data: string): void {
     const session = this.sessions.get(id)
     if (!session) return
-    if (/[\r\n]/.test(data)) session.entered = true
+    if (/[\r\n]/.test(data)) this.entered(session)
     session.proc.write(data)
+  }
+
+  has(id: string): boolean {
+    return this.sessions.has(id)
+  }
+
+  /** The newest command number handed out so far, in any terminal. */
+  get lastSeq(): number {
+    return this.seq
+  }
+
+  /** What the shell in a terminal is doing, for `mrt ls`. */
+  info(id: string): { busy: boolean; process: string; integrated: boolean; lastCommand?: CommandResult } | null {
+    const session = this.sessions.get(id)
+    if (!session) return null
+    const last = session.commands.at(-1)
+    return {
+      busy: session.busy,
+      process: session.process,
+      integrated: session.integrated,
+      lastCommand: last && this.result(session, last)
+    }
+  }
+
+  /** The newest command that has started (running or finished), if any. */
+  lastCommand(id: string): CommandResult | null {
+    const session = this.sessions.get(id)
+    const last = session?.commands.at(-1)
+    return session && last ? this.result(session, last) : null
+  }
+
+  /** The command running right now, if the shell reports commands. */
+  runningSeq(id: string): number | null {
+    const last = this.sessions.get(id)?.commands.at(-1)
+    return last && last.end === undefined ? last.seq : null
+  }
+
+  /**
+   * The terminal is about to run its command: just opened or restarted,
+   * shell still starting. A missing session counts, since the renderer
+   * creates it a moment after a terminal opens.
+   */
+  starting(id: string): boolean {
+    const session = this.sessions.get(id)
+    return !session || session.starting
+  }
+
+  /** Resolve once the shell is at its first prompt, so typed text is not echoed twice. */
+  waitForPrompt(id: string, timeoutMs: number): Promise<boolean> {
+    return this.until(timeoutMs, (timedOut) => {
+      const session = this.sessions.get(id)
+      return session?.prompted ? true : timedOut ? false : null
+    })
+  }
+
+  /**
+   * Resolve once the first command in `id` numbered above `afterSeq` has
+   * finished. The terminal may not exist yet, or be about to restart: it is
+   * looked up afresh on every check. Shells that send no marks are judged by
+   * busy going back to idle, without an exit code.
+   */
+  waitForCommand(id: string, afterSeq: number, timeoutMs: number): Promise<CommandResult & { timedOut: boolean }> {
+    return this.until(timeoutMs, (timedOut) => {
+      const session = this.sessions.get(id)
+      if (!session) return timedOut ? { output: '', running: false, timedOut } : null
+      const command = session.commands.find((c) => c.seq > afterSeq)
+      if (command && (command.end !== undefined || timedOut)) return { ...this.result(session, command), timedOut }
+      if (!session.integrated && session.entered && session.sawBusy && !session.busy) {
+        return { output: plainText(session.output.slice(-20_000)), running: false, timedOut: false }
+      }
+      return timedOut ? { output: plainText(session.output.slice(-20_000)), running: true, timedOut } : null
+    })
+  }
+
+  /**
+   * Resolve once `pattern` shows up in the output of the terminal's newest
+   * command (running or finished), so a server that was already up before
+   * the wait began still counts, and the typed command line itself does not.
+   * Shells without marks have no commands; there the whole output is searched.
+   */
+  waitForMatch(id: string, pattern: RegExp, timeoutMs: number): Promise<{ match?: string; timedOut: boolean }> {
+    return this.until(timeoutMs, (timedOut) => {
+      const session = this.sessions.get(id)
+      if (session) {
+        const last = session.commands.at(-1)
+        const text = last ? this.result(session, last).output : plainText(session.output)
+        const match = text.match(pattern)
+        if (match) return { match: match[0], timedOut: false }
+      }
+      return timedOut ? { timedOut } : null
+    })
+  }
+
+  /** Resolve once nothing is running in the terminal. */
+  waitForIdle(id: string, timeoutMs: number): Promise<{ timedOut: boolean }> {
+    return this.until(timeoutMs, (timedOut) => {
+      const session = this.sessions.get(id)
+      if (!session || !session.busy) return { timedOut: false }
+      return timedOut ? { timedOut } : null
+    })
+  }
+
+  private until<T>(timeoutMs: number, check: (timedOut: boolean) => T | null): Promise<T> {
+    const deadline = Date.now() + timeoutMs
+    return new Promise((resolve) => {
+      const tick = (): void => {
+        const timedOut = Date.now() >= deadline
+        const result = check(timedOut)
+        if (result !== null) resolve(result)
+        else setTimeout(tick, 100)
+      }
+      tick()
+    })
+  }
+
+  private entered(session: Session): void {
+    session.entered = true
+    session.sawBusy = session.busy
+  }
+
+  /** Keep the output, and turn command marks into command records. */
+  private record(id: string, session: Session, data: string): void {
+    const base = session.outputStart + session.output.length
+    session.output += data
+    if (session.output.length > OUTPUT_LIMIT) {
+      const drop = session.output.length - OUTPUT_LIMIT * 0.75
+      session.output = session.output.slice(drop)
+      session.outputStart += drop
+    }
+
+    const text = session.tail + data
+    const textStart = base - session.tail.length
+    session.tail = text.slice(-64)
+    for (const mark of parseMarks(text)) {
+      const start = textStart + mark.start
+      const end = textStart + mark.end
+      if (start < session.markedUpTo) continue
+      session.markedUpTo = end
+      session.integrated = true
+      const open = session.commands.at(-1)
+      if (mark.kind === 'A') session.prompted = true
+      if (mark.kind === 'C') {
+        session.starting = false
+        if (open && open.end === undefined) open.end = start
+        session.commands.push({ seq: ++this.seq, start: end })
+        if (session.commands.length > COMMAND_LIMIT) session.commands.shift()
+      } else if (open && open.end === undefined) {
+        open.end = start
+        open.exitCode = mark.exitCode
+      }
+      this.setStatus(id, session, mark.kind === 'C', session.process)
+    }
+  }
+
+  private result(session: Session, command: CommandRecord): CommandResult {
+    const from = Math.max(0, command.start - session.outputStart)
+    const to = command.end === undefined ? undefined : command.end - session.outputStart
+    return {
+      output: plainText(session.output.slice(from, to)),
+      exitCode: command.exitCode,
+      running: command.end === undefined,
+      truncated: command.start < session.outputStart || undefined
+    }
   }
 
   resize(id: string, cols: number, rows: number): void {
@@ -205,6 +403,7 @@ export class PtyManager {
 
   private setStatus(id: string, session: Session, busy: boolean, process: string): void {
     if (busy === session.busy && process === session.process) return
+    if (busy) session.sawBusy = true
     session.busy = busy
     session.process = process
     this.events.status({ id, busy, process })

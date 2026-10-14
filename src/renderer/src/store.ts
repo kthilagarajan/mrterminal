@@ -145,6 +145,18 @@ export function addTerminalDef(projectId: string, def: TerminalDef): void {
   editProject(projectId, (p) => ({ ...p, terminals: [...p.terminals, def] }))
 }
 
+/**
+ * Remember where a plain shell has `cd`'d to, so reopening it (after closing
+ * the tab or the app) lands in the same folder. A command's cwd is part of its
+ * identity and stays as launched.
+ */
+export function setShellCwd(id: string, cwd: string): void {
+  const project = state.config?.projects.find((p) => p.terminals.some((t) => t.id === id))
+  const def = project?.terminals.find((t) => t.id === id)
+  if (!project || !def || def.command || def.cwd === cwd) return
+  editProject(project.id, (p) => ({ ...p, terminals: p.terminals.map((t) => (t.id === id ? { ...t, cwd } : t)) }))
+}
+
 export function removeTerminalDef(projectId: string, id: string): void {
   editProject(projectId, (p) => ({ ...p, terminals: p.terminals.filter((t) => t.id !== id) }))
   cancelShow(id)

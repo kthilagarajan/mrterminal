@@ -3,7 +3,10 @@ import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import type { Config, MenuAction, PtyCreateOptions } from '@shared/types'
 import { getTheme } from '@shared/themes'
-import { ConfigStore } from './config'
+import type { Server } from 'node:net'
+import { ConfigStore, socketPath } from './config'
+import { createControl, serveControl } from './control'
+import { installCli } from './cliInstall'
 import { PtyManager } from './pty'
 import { detectScripts } from './scripts'
 import { Updater } from './updater'
@@ -27,6 +30,29 @@ const ptys = new PtyManager(
 )
 
 const updater = new Updater((state) => send('update:state', state))
+
+// ── mrt: the command-line tool talks to the app through the renderer ────────
+
+let controlServer: Server | null = null
+let nextRequest = 1
+const pendingRequests = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }>()
+
+function callRenderer(method: string, params: Record<string, unknown>): Promise<unknown> {
+  if (!win || win.isDestroyed() || win.webContents.isLoading()) {
+    return Promise.reject(new Error('MrTerminal is still starting; try again in a moment.'))
+  }
+  const id = nextRequest++
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingRequests.delete(id)
+      reject(new Error('MrTerminal did not answer in time.'))
+    }, 15000)
+    pendingRequests.set(id, { resolve, reject, timer })
+    send('control:request', { id, method, params })
+  })
+}
+
+const control = createControl({ renderer: callRenderer, ptys, detectScripts, version: app.getVersion() })
 
 function saveBounds(): void {
   if (!win || win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return
@@ -126,6 +152,7 @@ function buildMenu(): void {
         item('Reopen Closed Tab or Project', key('Cmd+Shift+T', 'Ctrl+Shift+Z'), 'reopen-closed'),
         { type: 'separator' },
         item('Add Project…', 'CmdOrCtrl+O', 'add-project'),
+        { label: "Install 'mrt' Command…", click: () => void installCli(win) },
         ...(isMac ? [] : [{ type: 'separator' } as const, item('Settings…', 'Ctrl+,', 'settings'), { role: 'quit' } as const])
       ]
     },
@@ -182,6 +209,15 @@ function registerIpc(): void {
   ipcMain.on('pty:resize', (_e, id: string, cols: number, rows: number) => ptys.resize(id, cols, rows))
   ipcMain.on('pty:kill', (_e, id: string) => ptys.kill(id))
 
+  ipcMain.on('control:response', (_e, id: number, response: { result?: unknown; error?: string }) => {
+    const pending = pendingRequests.get(id)
+    if (!pending) return
+    pendingRequests.delete(id)
+    clearTimeout(pending.timer)
+    if (response.error !== undefined) pending.reject(new Error(response.error))
+    else pending.resolve(response.result)
+  })
+
   ipcMain.handle('update:get', () => updater.get())
   ipcMain.handle('update:check', () => updater.check())
   ipcMain.on('update:install', () => void updater.install())
@@ -206,12 +242,14 @@ if (!app.requestSingleInstanceLock()) {
     buildMenu()
     createWindow()
     updater.start()
+    controlServer = serveControl(socketPath, control)
   })
 
   // One window, and its terminals are the whole point: closing it quits.
   app.on('window-all-closed', () => app.quit())
   app.on('before-quit', () => {
     updater.stop()
+    controlServer?.close()
     ptys.killAll()
     store.flush()
   })

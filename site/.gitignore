@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+# Copied from the repository by scripts/sync.mjs
+public/skill.md
+public/config.schema.json
+public/icon.svg
+public/screenshots/
+src/generated/

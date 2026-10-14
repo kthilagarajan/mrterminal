@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kthilagarajan/mrterminal/main/schema/config.schema.json",
+  "title": "MrTerminal configuration",
+  "description": "~/.mrterminal/config.json: projects, their open terminals, layouts, presets and commands, and app settings. While MrTerminal runs it owns this file and rewrites it within a second of any change, so edit it only while the app is closed; with the app running, use the `mrt` command instead. Missing fields get defaults and unknown fields are dropped on load.",
+  "type": "object",
+  "required": ["version", "projects"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1, "description": "Format version." },
+    "settings": { "$ref": "#/$defs/Settings" },
+    "projects": {
+      "type": "array",
+      "description": "Projects in sidebar order.",
+      "items": { "$ref": "#/$defs/Project" }
+    },
+    "activeProjectId": {
+      "type": ["string", "null"],
+      "description": "Id of the project on screen."
+    },
+    "sidebarWidth": { "type": "number", "default": 280, "description": "Sidebar width in pixels." },
+    "sidebarHidden": { "type": "boolean", "default": false },
+    "window": {
+      "type": "object",
+      "description": "Window position and size; written by the app.",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "maximized": { "type": "boolean" }
+      },
+      "required": ["width", "height"]
+    }
+  },
+  "$defs": {
+    "Settings": {
+      "type": "object",
+      "properties": {
+        "restoreOnLaunch": {
+          "enum": ["ask", "resume", "layout", "fresh"],
+          "default": "ask",
+          "description": "What happens to the previous session's terminals at start: ask every time; resume (reopen and re-run every command); layout (reopen, leave commands typed at the prompt); fresh (start empty)."
+        },
+        "shell": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Absolute path of the shell to launch; null for the user's login shell."
+        },
+        "fontSize": { "type": "number", "default": 13 },
+        "fontFamily": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Terminal font family; null for the built-in monospace font."
+        },
+        "theme": {
+          "enum": ["midnight", "dracula", "nord", "solarized-dark", "daylight", "solarized-light"],
+          "default": "midnight"
+        }
+      }
+    },
+    "Project": {
+      "type": "object",
+      "description": "A folder whose scripts MrTerminal offers to run.",
+      "required": ["id", "path"],
+      "properties": {
+        "id": { "type": "string", "description": "Stable id, e.g. 8 random hex characters." },
+        "name": { "type": "string", "description": "Name in the sidebar; defaults to the path." },
+        "path": { "type": "string", "description": "Absolute path of the project folder. Projects whose folder no longer exists are dropped." },
+        "terminals": {
+          "type": "array",
+          "description": "Terminals open right now, in no particular order. This is what is restored at the next start.",
+          "items": { "$ref": "#/$defs/Terminal" }
+        },
+        "layout": {
+          "description": "Dockview layout (splits, tabs, sizes) referring to terminal ids. Optional: terminals missing from it are tiled automatically, so null is always safe.",
+          "type": ["object", "null"]
+        },
+        "customCommands": {
+          "type": "array",
+          "description": "Commands the user added that are not in any script file.",
+          "items": { "$ref": "#/$defs/CustomCommand" }
+        },
+        "presets": {
+          "type": "array",
+          "description": "Saved sets of terminals that open together in one click.",
+          "items": { "$ref": "#/$defs/Preset" }
+        },
+        "aliases": {
+          "type": "object",
+          "description": "Names given to detected scripts. Key: the folder relative to the project ('' for the root), a newline, then the command line, e.g. \"\\nnpm run dev\" or \"web\\npnpm run dev\".",
+          "additionalProperties": { "type": "string" }
+        },
+        "expanded": { "type": "boolean", "default": true, "description": "The project's card is unfolded in the sidebar." },
+        "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "The project's colour; assigned automatically when missing." }
+      }
+    },
+    "Terminal": {
+      "type": "object",
+      "description": "A terminal: the user's shell started in `cwd`, with `command` typed into it. A command's identity is command + cwd; that is how sidebar entries, presets and aliases find their terminal.",
+      "required": ["id", "title", "cwd"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique among all terminals; also its id for `mrt` and its MRT_TERMINAL_ID." },
+        "title": { "type": "string", "description": "Tab title." },
+        "cwd": { "type": "string", "description": "Absolute folder the shell starts in." },
+        "command": { "type": "string", "description": "Command line typed into the shell on start. Absent for a plain shell." }
+      }
+    },
+    "CustomCommand": {
+      "type": "object",
+      "required": ["id", "name", "command"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "command": { "type": "string" },
+        "cwd": { "type": "string", "description": "Folder to run in: relative to the project, absolute, or starting with ~. Absent for the project root." }
+      }
+    },
+    "Preset": {
+      "type": "object",
+      "required": ["id", "name", "terminals"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "terminals": {
+          "type": "array",
+          "description": "Terminals to open. Ids only need to be unique within the preset; launching gives each a fresh id, and reuses an open terminal with the same command and cwd.",
+          "items": { "$ref": "#/$defs/Terminal" }
+        },
+        "layout": {
+          "type": ["object", "null"],
+          "description": "Dockview layout referring to the ids in `terminals`; null tiles them automatically."
+        }
+      }
+    }
+  }
+}

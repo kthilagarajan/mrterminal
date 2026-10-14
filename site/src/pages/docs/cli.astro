@@ -1,0 +1,80 @@
+---
+import { COMMANDS, GLOBAL_HELP } from '../../../../src/cli/commands'
+import Docs from '../../layouts/Docs.astro'
+const base = import.meta.env.BASE_URL
+---
+
+<Docs
+  title="mrt command reference"
+  description="Every command of mrt, MrTerminal's command-line tool: open and close terminals, run scripts, type into terminals, read output, wait for commands, presets."
+>
+  <h1>mrt command reference</h1>
+  <p>
+    <code>mrt</code> controls the running MrTerminal app. It ships inside the app, so it runs on the app's own
+    runtime and updates with it. To put it on your <code>PATH</code>, choose <strong>Shell → Install 'mrt'
+    Command…</strong> in the app. That links <code>/usr/local/bin/mrt</code> and asks for your password if
+    needed.
+  </p>
+  <p>
+    If MrTerminal isn't running, <code>mrt</code> starts it first. Everything it does happens in the app's own
+    terminals, in plain view: every terminal it opens or types into is brought on screen, and your keyboard focus
+    stays where it was.
+  </p>
+
+  <h2>Quick tour</h2>
+  <pre><code>mrt status                          # what is open and what is running
+mrt scripts                         # what this project can run
+mrt run dev                         # start the dev script (reuses its terminal)
+mrt wait dev --match 'ready'        # until its output says so
+mrt run test --wait                 # output and exit code of the test run
+mrt read dev --lines 40             # the last 40 lines of a terminal
+mrt send notes 'git status'         # type a line into a terminal
+mrt keys dev ctrl-c                 # press keys
+mrt open --split right -- tail -f log/development.log
+mrt preset save "Full stack"        # remember the open terminals and layout</code></pre>
+
+  <h2>Commands</h2>
+  <table>
+    <thead><tr><th>Usage</th><th>What it does</th></tr></thead>
+    <tbody>
+      {
+        COMMANDS.map((c) => (
+          <tr id={c.name}>
+            <td><code>mrt {c.usage}</code></td>
+            <td>{c.summary}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+
+  <h2>Options, names and exit codes</h2>
+  <pre><code>{GLOBAL_HELP}</code></pre>
+
+  <h3>Which project?</h3>
+  <p>
+    Without <code>--project</code>, <code>mrt</code> uses the project whose folder contains your current directory,
+    or else the project of the MrTerminal terminal it runs in, or else the project on screen.
+  </p>
+
+  <h3>Output and exit codes of a command</h3>
+  <p>
+    MrTerminal starts zsh and bash with a small shell integration that reports where each command starts and ends
+    and its exit code, using the standard OSC 133 marks. fish reports them by itself. That is how
+    <code>mrt run --wait</code>, <code>mrt send --wait</code>, <code>mrt wait</code> and
+    <code>mrt read --command</code> return only one command's output and its real exit code. In other shells they
+    still wait, but have no exit code.
+  </p>
+
+  <h3>Waits are bounded</h3>
+  <p>
+    <code>--timeout</code> defaults to 60 seconds. When it runs out, <code>mrt</code> exits with code 124 and the
+    command keeps running. Check it with <code>mrt read</code>, or wait again.
+  </p>
+
+  <h3>Scripting</h3>
+  <p>
+    Add <code>--json</code> to any command for machine-readable output. To use <code>mrt</code> from a coding
+    agent, see <a href={`${base}docs/agents/`}>coding agents</a>.
+  </p>
+</Docs>

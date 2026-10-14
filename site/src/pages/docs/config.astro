@@ -1,0 +1,84 @@
+---
+import schema from '../../../../schema/config.schema.json'
+import Docs from '../../layouts/Docs.astro'
+const base = import.meta.env.BASE_URL
+
+type Field = { type?: string | string[]; enum?: unknown[]; const?: unknown; default?: unknown; description?: string; $ref?: string; items?: Field }
+const defs = schema.$defs as Record<string, { description?: string; properties: Record<string, Field>; required?: string[] }>
+
+function type(field: Field): string {
+  if (field.$ref) return field.$ref.split('/').pop()!
+  if (field.enum) return field.enum.map((v) => JSON.stringify(v)).join(' | ')
+  if (field.const !== undefined) return JSON.stringify(field.const)
+  if (field.type === 'array' && field.items) return `${type(field.items)}[]`
+  return Array.isArray(field.type) ? field.type.join(' | ') : (field.type ?? 'any')
+}
+
+const sections = [
+  { name: 'Config', description: schema.description, properties: schema.properties as Record<string, Field>, required: schema.required },
+  ...Object.entries(defs).map(([name, def]) => ({ name, ...def }))
+].map((s) => ({ ...s, properties: Object.entries(s.properties).filter(([key]) => key !== '$schema') }))
+---
+
+<Docs
+  title="Configuration file"
+  description="The format of ~/.mrterminal/config.json, where MrTerminal keeps projects, open terminals, layouts, presets, custom commands and settings, with its JSON Schema."
+>
+  <h1>Configuration file</h1>
+  <p>
+    MrTerminal keeps everything in one JSON file, <code>~/.mrterminal/config.json</code>. That covers projects, the
+    terminals open in each and their layout, presets, custom commands, names given to scripts, and settings. It is
+    described by a JSON Schema: <a href={`${base}config.schema.json`}>config.schema.json</a>. The file links to it
+    with <code>$schema</code>, so editors and agents can look up every field.
+  </p>
+  <p>
+    <strong>Edit it only while MrTerminal is closed.</strong> While it runs, the app owns the file and rewrites it
+    within a second of any change. Make changes through <a href={`${base}docs/cli/`}><code>mrt</code></a> instead.
+    When the app starts it reads the file and tidies it: missing fields get defaults, unknown fields are dropped, and
+    projects whose folder is gone are removed.
+  </p>
+  <pre><code>mrt config path     # where it is
+mrt config show     # what is in it
+mrt config schema   # the JSON Schema</code></pre>
+
+  <h2>A hand-written preset</h2>
+  <p>
+    Only the terminals are needed. A <code>null</code> layout tiles them, and launching the preset gives each a fresh
+    id and reuses any open terminal with the same command and folder.
+  </p>
+  <pre><code>{`{
+  "id": "p1",
+  "name": "Full stack",
+  "layout": null,
+  "terminals": [
+    { "id": "1", "title": "web", "cwd": "/Users/me/code/shop/web", "command": "pnpm dev" },
+    { "id": "2", "title": "api", "cwd": "/Users/me/code/shop/api", "command": "make run" }
+  ]
+}`}</code></pre>
+
+  {
+    sections.map((section) => (
+      <section>
+        <h2 id={section.name.toLowerCase()}>{section.name}</h2>
+        {section.description && <p>{section.description}</p>}
+        <table>
+          <thead>
+            <tr><th>Field</th><th>Type</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            {section.properties.map(([key, field]) => (
+              <tr>
+                <td><code>{key}</code>{section.required?.includes(key) && <span title="required"> *</span>}</td>
+                <td><code>{type(field)}</code></td>
+                <td>
+                  {field.description}
+                  {field.default !== undefined && <> Default: <code>{JSON.stringify(field.default)}</code>.</>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    ))
+  }
+</Docs>

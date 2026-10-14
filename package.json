@@ -1,7 +1,7 @@
 {
   "name": "mrterminal",
   "productName": "MrTerminal",
-  "version": "0.4.6",
+  "version": "0.5.0",
   "description": "A visual workspace for your project terminals: one click to run any script, drag-and-drop splits, sessions that come back after you quit.",
   "main": "./out/main/index.js",
   "license": "MIT",
@@ -13,6 +13,7 @@
     "test": "vitest run",
     "dist": "electron-vite build && electron-builder --mac",
     "dist:dir": "electron-vite build && electron-builder --dir",
+    "mrt": "node out/main/cli.js",
     "postinstall": "node scripts/fix-pty-perms.js"
   },
   "dependencies": {

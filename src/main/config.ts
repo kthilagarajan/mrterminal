@@ -14,6 +14,15 @@ import {
 export const configDir = process.env.MRTERMINAL_HOME || join(homedir(), '.mrterminal')
 export const configPath = join(configDir, 'config.json')
 
+/** Where the running app listens for `mrt`. */
+export const socketPath =
+  process.platform === 'win32'
+    ? `\\\\.\\pipe\\mrterminal-${configDir.replace(/[^A-Za-z0-9]/g, '-')}`
+    : join(configDir, 'mrt.sock')
+
+/** Lets editors and agents look up what each field of config.json means. */
+export const SCHEMA_URL = 'https://raw.githubusercontent.com/kthilagarajan/mrterminal/main/schema/config.schema.json'
+
 function normalizeProject(raw: Partial<Project>): Project | null {
   if (!raw || typeof raw.id !== 'string' || typeof raw.path !== 'string') return null
   return {
@@ -120,7 +129,7 @@ export class ConfigStore {
     try {
       mkdirSync(configDir, { recursive: true })
       const tmp = `${configPath}.tmp`
-      writeFileSync(tmp, JSON.stringify(this.config, null, 2))
+      writeFileSync(tmp, JSON.stringify({ $schema: SCHEMA_URL, ...this.config }, null, 2))
       renameSync(tmp, configPath)
     } catch (err) {
       console.error('mrterminal: could not write config:', err)

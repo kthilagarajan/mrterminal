@@ -88,6 +88,11 @@ export function deleteProject(project: Project): void {
     'The folder and its files are not touched.'
   ]
   if (!window.confirm(message.filter(Boolean).join('\n\n'))) return
+  removeProjectNow(project)
+}
+
+/** Remove a project without asking; it can still be reopened. */
+export function removeProjectNow(project: Project): void {
   const index = getState().config?.projects.findIndex((p) => p.id === project.id) ?? 0
   rememberClosed({ kind: 'project', project, index })
   for (const terminal of project.terminals) disposeRuntime(terminal.id)

@@ -123,6 +123,17 @@ export interface PtyStatus {
   process: string
 }
 
+/** A command line run in a terminal, as reported by its shell. */
+export interface CommandResult {
+  /** What it printed, as plain text. */
+  output: string
+  /** Absent while running, and for shells that do not report exit codes. */
+  exitCode?: number
+  running: boolean
+  /** Its start was so long ago that the beginning of the output is gone. */
+  truncated?: boolean
+}
+
 export interface UpdateState {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'
   /** The version that is running. */

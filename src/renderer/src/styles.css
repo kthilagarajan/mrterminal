@@ -534,6 +534,10 @@ kbd {
 .project-path {
   color: var(--muted);
   font-size: 11px;
+  /* Cut long paths at the start: the project's own folder is the useful end.
+     The marks around the text in Sidebar.tsx keep it reading left to right. */
+  direction: rtl;
+  text-align: left;
 }
 
 /* How many processes are running: a quiet count, not a banner. */

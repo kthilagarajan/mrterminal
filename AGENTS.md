@@ -23,6 +23,7 @@ npm run typecheck    # tsc for main/preload and for the renderer
 npm test             # vitest (script detection, updater)
 npm run build        # bundle into out/
 npm run dist         # build .dmg and .zip into dist/ (macOS only)
+npm run mrt -- ls    # the mrt CLI from out/ (after npm run build), against the running app
 ```
 
 Run `npm run typecheck` and `npm test` before committing.
@@ -30,7 +31,8 @@ Run `npm run typecheck` and `npm test` before committing.
 ## Layout
 
 ```
-src/shared/     types.ts (config and IPC shapes), themes.ts. Imported by every side.
+src/shared/     types.ts (config and IPC shapes), themes.ts, control.ts (mrt protocol,
+                name resolution). Imported by every side.
 src/main/       Electron main process (Node)
   index.ts        window, menu, IPC handlers
   pty.ts          PtyManager: spawns shells, types commands, reports busy/idle
@@ -38,6 +40,11 @@ src/main/       Electron main process (Node)
   scripts.ts      detectScripts(): package.json, pyproject.toml, Makefile, ...
   config.ts       ConfigStore: load, normalise, atomic write
   updater.ts      over-the-air updates from GitHub releases
+  control.ts      the socket `mrt` talks to; answers or forwards to the renderer
+  cliInstall.ts   "Install 'mrt' Command…": links the launcher onto the PATH
+  plainText.ts    terminal output to readable text (for mrt read/wait)
+src/cli/        the `mrt` command-line tool (plain Node, no Electron APIs)
+  commands.ts     the command table; --help and a skill test read it
 src/preload/    index.ts exposes `window.api`; the only bridge to the renderer
 src/renderer/   React UI
   store.ts        single state object + config edits (useSyncExternalStore)
@@ -49,6 +56,17 @@ src/renderer/   React UI
   closed.ts       stack of closed tabs/projects behind "reopen closed"
   appearance.ts   applies theme and font everywhere
   Sidebar.tsx     project cards: running strip, presets, scripts, commands
+  control.ts      carries out mrt requests with the same functions clicks use
+schema/         config.schema.json: JSON Schema of ~/.mrterminal/config.json
+skills/mrt/     SKILL.md: teaches coding agents to use mrt (bundled into the CLI;
+                `mrt skill install` writes it to ~/.agents/skills/mrt)
+resources/bin/  mrt: the launcher shipped inside MrTerminal.app
+site/           the website (Astro + Tailwind, its own package.json); published
+                by .github/workflows/site.yml to GitHub Pages. It copies the
+                skill, schema and screenshots in at build time and renders the
+                CLI reference from src/cli/commands.ts, so edit those, not copies.
+                site/src/pages/setup.md.ts is the setup guide an agent follows
+                when the user pastes the prompt from the home page.
 ```
 
 ## How the pieces fit
@@ -86,6 +104,35 @@ src/renderer/   React UI
   `styles.css`; derive tints with `color-mix`.
 - **Renderer security:** sandboxed, context-isolated, no Node. Anything that
   needs the OS goes through a narrow IPC call in `preload/index.ts`.
+
+## The `mrt` CLI
+
+`mrt` lets the user, or a coding agent, drive the app: open and close
+terminals, run scripts, type into terminals, read their output, wait for a
+command or for a line of output. The app listens on `~/.mrterminal/mrt.sock`
+(mode 0600). One JSON request per line; see `shared/control.ts`.
+
+- **Nothing runs out of sight.** Every request goes through the same terminals
+  and the same functions a click uses, and the terminal it touches is
+  brought on screen (`reveal`, `holdFocus`) without taking the keyboard from
+  the user. Don't add a way to run things the user cannot see.
+- **Main resolves names, the renderer acts.** `main/control.ts` fetches the
+  renderer's state, turns `--project`/`<terminal>` into ids
+  (`resolveProject`/`resolveTerminal`, tested), and answers pty-level requests
+  (typing, waits, per-command output) itself.
+- **Per-command output and exit codes** come from the OSC 133 marks: `D`
+  carries `$?`, and `PtyManager` keeps each command's start and end offsets in
+  a 1 MB output buffer per terminal. `pty.test.ts` checks this with real shells.
+- **The CLI ships inside the app.** `out/main/cli.js` is a second main-process
+  entry. `resources/bin/mrt` runs it with `ELECTRON_RUN_AS_NODE=1` on the
+  app's own binary, so the CLI updates together with the app. Elsewhere,
+  `cliInstall.ts` writes an equivalent launcher.
+- **Keep the docs in step.** A new command goes in `cli/commands.ts`,
+  `cli/index.ts` and `skills/mrt/SKILL.md`; `commands.test.ts` fails if the
+  skill misses one. A new config field also goes in `schema/config.schema.json`.
+
+Terminals get `MRT_TERMINAL_ID` in their environment, which is how `mrt`
+knows which terminal `self` means.
 
 ## Adding a script source
 
@@ -127,6 +174,8 @@ and rendering appears frozen.
 
 - `MRTERMINAL_HOME` redirects the config directory away from `~/.mrterminal`.
 - `MRTERMINAL_UPDATE_FEED` points the updater at another "latest release" URL.
+- With the same `MRTERMINAL_HOME`, `node out/main/cli.js ...` talks to that
+  instance, which is the easiest way to script the UI for a check.
 
 macOS-specific behaviour (the .dmg, the update swap, traffic-light layout)
 cannot be exercised on Linux; say so rather than assume it works.

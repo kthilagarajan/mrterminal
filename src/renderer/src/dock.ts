@@ -22,7 +22,7 @@ import {
   subscribe,
   uid
 } from './store'
-import { disposeRuntime, ensureRuntime, getRuntime } from './terminals'
+import { disposeRuntime, ensureRuntime, getRuntime, holdFocus } from './terminals'
 
 export type Placement = 'auto' | 'right' | 'below' | 'tab'
 
@@ -399,12 +399,15 @@ export class ProjectDock {
     })
   }
 
-  open(spec: Omit<TerminalDef, 'id'>, placement: Placement = 'auto', group?: DockviewGroupPanel): void {
+  /** @param focus false: show the new tab but leave the keyboard where it is */
+  open(spec: Omit<TerminalDef, 'id'>, placement: Placement = 'auto', group?: DockviewGroupPanel, focus = true): TerminalDef {
     const def: TerminalDef = { ...spec, id: uid() }
     addTerminalDef(this.projectId, def)
     ensureRuntime(def, true)
+    if (!focus) holdFocus()
     this.addPanel(def, placement, group).api.setActive()
     getRuntime(def.id)?.focus()
+    return def
   }
 
   openShell(placement: Placement = 'auto', group?: DockviewGroupPanel): void {
@@ -418,6 +421,14 @@ export class ProjectDock {
     if (!panel) return
     panel.api.setActive()
     getRuntime(panel.id)?.focus()
+  }
+
+  /** Bring a terminal's tab to the front without moving keyboard focus. */
+  reveal(id: string): void {
+    const panel = this.api.getPanel(id)
+    if (!panel) return
+    holdFocus()
+    panel.api.setActive()
   }
 
   get activeId(): string | undefined {

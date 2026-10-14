@@ -1,0 +1,87 @@
+---
+import '../styles/global.css'
+
+interface Props {
+  title: string
+  description: string
+  /** Path of the page's social image, relative to the site. */
+  image?: string
+}
+
+const { title, description, image = 'screenshots/workspace.png' } = Astro.props
+const base = import.meta.env.BASE_URL
+const canonical = new URL(Astro.url.pathname, Astro.site)
+const imageUrl = new URL(`${base}${image}`, Astro.site)
+const fullTitle = title === 'MrTerminal' ? 'MrTerminal: one window for every terminal your projects need' : `${title} · MrTerminal`
+const nav = [
+  { href: `${base}docs/`, label: 'Docs' },
+  { href: `${base}docs/cli/`, label: 'CLI' },
+  { href: `${base}docs/agents/`, label: 'Agents' }
+]
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'MrTerminal',
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'macOS',
+  description,
+  url: new URL(base, Astro.site).href,
+  image: imageUrl.href,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  license: 'https://opensource.org/licenses/MIT',
+  downloadUrl: 'https://github.com/kthilagarajan/mrterminal/releases/latest'
+}
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href={`${base}icon.svg`} />
+    <link rel="sitemap" href={`${base}sitemap-index.xml`} />
+    <meta name="theme-color" content="#0d0e12" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="MrTerminal" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={imageUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+  <body class="min-h-screen font-sans antialiased">
+    <header class="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur">
+      <nav class="mx-auto flex h-14 max-w-6xl items-center gap-6 px-5" aria-label="Main">
+        <a href={base} class="flex items-center gap-2.5 font-semibold text-white">
+          <img src={`${base}icon.svg`} alt="" width="26" height="26" />
+          MrTerminal
+        </a>
+        <div class="ml-auto flex items-center gap-5 text-sm text-muted">
+          {nav.map((item) => <a class="hover:text-white" href={item.href}>{item.label}</a>)}
+          <a class="hover:text-white" href="https://github.com/kthilagarajan/mrterminal">GitHub</a>
+          <a
+            class="hidden rounded-md bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent/85 sm:inline-block"
+            href="https://github.com/kthilagarajan/mrterminal/releases/latest">Download</a
+          >
+        </div>
+      </nav>
+    </header>
+    <slot />
+    <footer class="mt-24 border-t border-line">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-8 text-sm text-faint">
+        <span>MrTerminal is free and open source (MIT).</span>
+        <a class="hover:text-text" href="https://github.com/kthilagarajan/mrterminal">Source</a>
+        <a class="hover:text-text" href="https://github.com/kthilagarajan/mrterminal/releases">Releases</a>
+        <a class="hover:text-text" href={`${base}skill.md`}>skill.md</a>
+        <a class="hover:text-text" href={`${base}config.schema.json`}>config.schema.json</a>
+      </div>
+    </footer>
+  </body>
+</html>

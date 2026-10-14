@@ -1,0 +1,15 @@
+#!/bin/sh
+# mrt: MrTerminal's command-line tool, run on the Node.js built into the app,
+# so it needs nothing else installed. /usr/local/bin/mrt is a symlink to this
+# file inside MrTerminal.app; follow it to find the app.
+target=$0
+while [ -L "$target" ]; do
+  link=$(readlink "$target")
+  case $link in
+    /*) target=$link ;;
+    *) target=$(dirname "$target")/$link ;;
+  esac
+done
+contents=$(cd "$(dirname "$target")/../.." && pwd)
+MRT_APP="$contents/MacOS/MrTerminal" ELECTRON_RUN_AS_NODE=1 \
+  exec "$contents/MacOS/MrTerminal" "$contents/Resources/app.asar/out/main/cli.js" "$@"

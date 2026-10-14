@@ -1,0 +1,53 @@
+---
+import { Content as Skill } from '../../generated/skill.md'
+import Docs from '../../layouts/Docs.astro'
+const base = import.meta.env.BASE_URL
+const setupUrl = new URL(`${base}setup.md`, Astro.site).href
+---
+
+<Docs
+  title="Coding agents"
+  description="Let Claude Code and other coding agents run dev servers, tests and workers in MrTerminal with the mrt CLI and its skill, while you watch every terminal they use."
+>
+  <h1>Coding agents</h1>
+  <p>
+    Coding agents are good at running commands and bad at keeping them running. A dev server started in an agent's
+    own shell blocks it or disappears with it, and you can't see what it printed. With <code>mrt</code>, the agent
+    runs long-lived commands in your MrTerminal window instead:
+  </p>
+  <ul>
+    <li><strong>You see everything.</strong> Every terminal the agent opens or types into is a normal tab, brought on screen as it happens. Nothing runs in the background.</li>
+    <li><strong>You stay in control.</strong> Press Ctrl-C, type into the same terminal, or close it, just as with any other tab. Your keyboard focus is never taken away.</li>
+    <li><strong>The agent gets clean results.</strong> <code>mrt run test --wait</code> returns only the test run's output and its real exit code. <code>mrt wait --match</code> waits for a server's "ready" line.</li>
+  </ul>
+
+  <h2>Set it up</h2>
+  <p>The quickest way is to let the agent do it. Paste this into your agent:</p>
+  <pre><code>Read {setupUrl} and set up MrTerminal for me.</code></pre>
+  <p>
+    <a href={`${base}setup.md`}>setup.md</a> walks the agent through installing the app (after asking you), linking
+    <code>mrt</code> onto the <code>PATH</code>, and installing the skill. To do it yourself:
+  </p>
+  <ol>
+    <li>In MrTerminal, choose <strong>Shell → Install 'mrt' Command…</strong></li>
+    <li>
+      Install the skill:
+      <pre><code>mrt skill install</code></pre>
+      This writes <code>~/.agents/skills/mrt/SKILL.md</code>, the folder coding agents share, so there is one copy
+      for every agent. Claude Code reads <code>~/.claude/skills</code>, so it gets a link,
+      <code>~/.claude/skills/mrt</code>, to that folder. To keep the skill with one repository instead, run
+      <code>mrt skill install --dir .agents/skills/mrt</code> in it.
+    </li>
+    <li>
+      An agent that reads its instructions from somewhere else can be pointed at
+      <a href={`${base}skill.md`}>skill.md</a>, or you can paste the output of <code>mrt skill show</code> into its
+      rules file.
+    </li>
+  </ol>
+  <p>Then just ask, for example: <em>"start the dev server in MrTerminal and fix the failing checkout test"</em>.</p>
+
+  <h2>The skill</h2>
+  <p>This is what the agent reads. It is also published as <a href={`${base}skill.md`}>skill.md</a>.</p>
+  <hr />
+  <Skill />
+</Docs>

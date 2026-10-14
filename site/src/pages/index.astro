@@ -1,0 +1,200 @@
+---
+import Term from '../components/Term.astro'
+import Base from '../layouts/Base.astro'
+
+const base = import.meta.env.BASE_URL
+const setupUrl = new URL(`${base}setup.md`, Astro.site).href
+const agentPrompt = `Read ${setupUrl} and set up MrTerminal for me.`
+const description =
+  'MrTerminal is a free macOS app that runs every script your projects define in one window: dev servers, tests and workers side by side, honest running status, presets and sessions that survive restarts. Coding agents can drive it with the mrt CLI.'
+
+const features = [
+  {
+    title: 'Every script, one click away',
+    body: 'Reads package.json, Makefile, pyproject.toml, justfile, Procfile, compose.yaml, Cargo.toml, go.mod and more, including sub-folders, and picks the right runner: npm, pnpm, yarn, bun, uv, poetry, make.'
+  },
+  {
+    title: 'Honest “running” status',
+    body: 'Green means a command is executing right now, as your shell reports it. It does not mean a tab is merely open. Every project card shows what runs inside it, each with its own stop button.'
+  },
+  {
+    title: 'Your real shell',
+    body: 'Each terminal is your own login shell, with your prompt, aliases and history. MrTerminal types the command for you, so Ctrl-C drops you back at a prompt.'
+  },
+  {
+    title: 'Layouts you drag into place',
+    body: 'Split, stack and resize terminals. Each project keeps its own layout, and its terminals keep running while you look at another project.'
+  },
+  {
+    title: 'Presets',
+    body: 'Save a set of terminals and their arrangement (“Full stack”) and bring them all back tomorrow with one click.'
+  },
+  {
+    title: 'Sessions that survive restarts',
+    body: 'Quit and reopen: your projects, layouts and commands come back, and MrTerminal can start them again for you.'
+  }
+]
+---
+
+<Base title="MrTerminal" description={description}>
+  <main>
+    <section class="mx-auto max-w-6xl px-5 pt-20 pb-14 text-center">
+      <p class="mb-5 inline-block rounded-full border border-line bg-panel px-3 py-1 text-xs text-muted">
+        Free and open source · macOS · Apple silicon and Intel
+      </p>
+      <h1 class="mx-auto max-w-4xl text-4xl font-semibold tracking-tight text-white sm:text-6xl">
+        One window for every terminal your projects need
+      </h1>
+      <p class="mx-auto mt-6 max-w-2xl text-lg text-muted">
+        Add a repository and every script it defines is one click away. Run the dev server, the tests and the worker
+        side by side, see at a glance what is running, and get it all back after a restart. Your coding agent can
+        use it too.
+      </p>
+      <div class="mt-9 flex flex-wrap justify-center gap-3">
+        <a
+          class="rounded-lg bg-accent px-5 py-2.5 font-medium text-white hover:bg-accent/85"
+          href="https://github.com/kthilagarajan/mrterminal/releases/latest">Download for macOS</a
+        >
+        <a class="rounded-lg border border-line bg-panel px-5 py-2.5 font-medium text-white hover:bg-panel2" href={`${base}docs/agents/`}
+          >Use it with coding agents</a
+        >
+      </div>
+
+      <div class="mx-auto mt-12 max-w-2xl rounded-xl border border-accent/40 bg-panel p-5 text-left shadow-lg shadow-accent/5">
+        <p class="flex items-center gap-2 text-sm font-medium text-white">
+          <span class="size-2 rounded-full bg-run"></span>
+          Ready for coding agents
+        </p>
+        <p class="mt-1 text-sm text-muted">
+          Paste this into Claude Code, Codex, Cursor or any coding agent. It installs MrTerminal, the
+          <code class="text-text">mrt</code> command and the skill for you.
+        </p>
+        <div class="mt-4 flex flex-col gap-3 rounded-lg border border-line bg-bg p-3 sm:flex-row sm:items-center">
+          <code id="agent-prompt" class="flex-1 font-mono [overflow-wrap:anywhere] text-[13px] leading-6 text-white">{agentPrompt}</code>
+          <button
+            type="button"
+            data-copy="agent-prompt"
+            class="shrink-0 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-accent/85"
+          >
+            Copy prompt
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto max-w-6xl px-5" aria-label="Screenshot">
+      <img
+        class="w-full rounded-xl border border-line shadow-2xl shadow-black/50"
+        src={`${base}screenshots/workspace.png`}
+        width="2160"
+        height="1308"
+        alt="MrTerminal running a web app's dev server, tests and a Stripe listener side by side, with an API project's server and worker running in the sidebar"
+      />
+    </section>
+
+    <section class="mx-auto max-w-6xl px-5 pt-24" aria-labelledby="features">
+      <h2 id="features" class="text-3xl font-semibold tracking-tight text-white">Stop hunting for the right tab</h2>
+      <p class="mt-3 max-w-2xl text-muted">
+        A real project means four or five long-running commands across more than one repository. MrTerminal reads the
+        commands your projects already define, and gives each one a button.
+      </p>
+      <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          features.map((f) => (
+            <div class="rounded-xl border border-line bg-panel p-6">
+              <h3 class="font-medium text-white">{f.title}</h3>
+              <p class="mt-2 text-sm leading-6 text-muted">{f.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="mx-auto grid max-w-6xl items-center gap-12 px-5 pt-28 lg:grid-cols-2" aria-labelledby="agents">
+      <div>
+        <p class="text-sm font-medium text-accent-soft">mrt, the command line</p>
+        <h2 id="agents" class="mt-2 text-3xl font-semibold tracking-tight text-white">
+          Your coding agent works in your terminals, where you can see it
+        </h2>
+        <p class="mt-4 text-muted">
+          The <code class="text-text">mrt</code> command can do everything a click can. Claude Code and other agents can
+          use it to start the dev server, wait until it is ready, run the tests and read the result.
+        </p>
+        <p class="mt-4 text-muted">
+          Nothing runs out of sight. Every terminal an agent opens or types into is a normal tab in your window,
+          brought on screen as it happens. You can take over or press Ctrl-C at any time.
+        </p>
+        <p class="mt-6 text-sm text-muted">One skill, in the folder agents share:</p>
+        <pre class="mt-2 overflow-x-auto rounded-lg border border-line bg-panel px-4 py-3 font-mono text-[13px] leading-6 text-text"><span class="text-run">$</span> mrt skill install
+~/.agents/skills/mrt/SKILL.md  <span class="text-faint"># the shared copy</span>
+~/.claude/skills/mrt           <span class="text-faint"># link, for Claude Code</span>
+.agents/skills/mrt/            <span class="text-faint"># or per repo: --dir</span></pre>
+        <div class="mt-7 flex gap-5 text-sm">
+          <a class="font-medium text-accent-soft hover:underline" href={`${base}docs/agents/`}>Set up your agent →</a>
+          <a class="font-medium text-accent-soft hover:underline" href={`${base}docs/cli/`}>Command reference →</a>
+        </div>
+      </div>
+      <Term title="claude · ~/code/shop"><span class="text-faint"># the agent starts the server and waits for it</span>
+<span class="text-run">$</span> mrt run dev
+<span class="text-muted">mrt: Started dev in shop (16f39f80).</span>
+<span class="text-run">$</span> mrt wait dev --match 'ready' --timeout 60
+<span class="text-text">ready</span>
+
+<span class="text-faint"># runs the tests and reads only their result</span>
+<span class="text-run">$</span> mrt run test --wait
+<span class="text-text">✓ 41 passed  ✗ 1 failed  checkout.test.ts:88</span>
+<span class="text-stop">mrt: exit 1</span>
+
+<span class="text-faint"># stops what it started</span>
+<span class="text-run">$</span> mrt stop dev</Term
+      >
+    </section>
+
+    <section class="mx-auto grid max-w-6xl items-center gap-12 px-5 pt-28 lg:grid-cols-2" aria-labelledby="presets">
+      <img
+        class="w-full rounded-xl border border-line"
+        src={`${base}screenshots/preset.png`}
+        width="2160"
+        height="1308"
+        loading="lazy"
+        alt="Saving the open terminals as a preset, with a miniature of the layout"
+      />
+      <div>
+        <h2 id="presets" class="text-3xl font-semibold tracking-tight text-white">Your whole stack, one click</h2>
+        <p class="mt-4 text-muted">
+          Arrange the terminals a task needs, save them as a preset, and start them all together next time. Terminals
+          that are already running are kept, and stopped ones start again.
+        </p>
+        <p class="mt-4 text-muted">
+          Everything is stored as JSON in <code class="text-text">~/.mrterminal/config.json</code>, described by a
+          <a class="text-accent-soft hover:underline" href={`${base}docs/config/`}>published schema</a>.
+        </p>
+      </div>
+    </section>
+
+    <section class="mx-auto max-w-3xl px-5 pt-28 text-center" aria-labelledby="install">
+      <h2 id="install" class="text-3xl font-semibold tracking-tight text-white">Install</h2>
+      <p class="mt-4 text-muted">
+        Download the <code class="text-text">.dmg</code> (<code class="text-text">arm64</code> for Apple silicon,
+        <code class="text-text">x64</code> for Intel) and drag MrTerminal to Applications. It isn't notarized by
+        Apple yet, so clear the download flag once:
+      </p>
+      <div class="mx-auto mt-6 max-w-xl text-left">
+        <Term title="Terminal"><span class="text-run">$</span> xattr -cr /Applications/MrTerminal.app</Term>
+      </div>
+      <p class="mt-6 text-sm text-faint">MrTerminal updates itself. Windows and Linux builds are planned.</p>
+    </section>
+  </main>
+</Base>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    button.addEventListener('click', async () => {
+      const text = document.getElementById(button.dataset.copy!)?.textContent ?? ''
+      await navigator.clipboard.writeText(text.trim())
+      const label = button.textContent
+      button.textContent = 'Copied'
+      setTimeout(() => (button.textContent = label), 1500)
+    })
+  }
+</script>

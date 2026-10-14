@@ -89,6 +89,40 @@ version and has a "Check for updates" button.
 To publish a version: bump `version` in `package.json`, commit, then
 `git tag v<version> && git push --tags`.
 
+## Command line and coding agents: `mrt`
+
+Everything you can click, `mrt` can do from a shell, and so can a coding
+agent such as Claude Code. Choose **Shell → Install 'mrt' Command…** once,
+then:
+
+```sh
+mrt status                                   # what is open and what is running
+mrt run dev                                  # start a script in its own terminal
+mrt wait dev --match 'ready' --timeout 60    # until the server is up
+mrt run test --wait                          # run tests: their output, their exit code
+mrt read dev --lines 40                      # what a terminal printed
+mrt send notes 'git status'                  # type into a terminal
+mrt stop dev                                 # Ctrl-C
+```
+
+Nothing runs out of sight. Every terminal `mrt` opens or types into is a normal
+tab in the window, brought on screen as it happens, so you see what an agent is
+doing and can take over or press Ctrl-C at any time. Your keyboard stays where
+you left it.
+
+**Set it up with your agent.** Paste this into Claude Code, Codex, Cursor or any
+coding agent:
+
+```
+Read https://kthilagarajan.github.io/mrterminal/setup.md and set up MrTerminal for me.
+```
+
+Or do it yourself: `mrt skill install` writes the skill to
+`~/.agents/skills/mrt/`, the folder coding agents share, and links
+`~/.claude/skills/mrt` to it for Claude Code. `mrt --help` lists every command.
+Your projects, terminals, layouts and presets are stored in
+`~/.mrterminal/config.json`, described by a JSON Schema (`mrt config schema`).
+
 ## Run from source
 
 ```sh
@@ -211,6 +245,8 @@ src/main/      Electron main process
   scripts.ts     script detection, with tests in scripts.test.ts
   config.ts      ~/.mrterminal/config.json
   updater.ts     over-the-air updates from GitHub releases
+  control.ts     the socket the mrt command talks to
+src/cli/       the mrt command-line tool
 src/shared/    types and themes used by both sides
 src/preload/   the API exposed to the UI
 src/renderer/  React UI
@@ -218,7 +254,8 @@ src/renderer/  React UI
   terminals.ts   terminal views (xterm.js)
 ```
 
-`npm test` runs the script-detection tests; `npm run typecheck` checks types.
+`npm test` runs the tests (script detection, shell integration, the mrt
+protocol); `npm run typecheck` checks types.
 
 ## License
 

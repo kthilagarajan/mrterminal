@@ -6,11 +6,13 @@ import '@xterm/xterm/css/xterm.css'
 import 'dockview/dist/styles/dockview.css'
 import './styles.css'
 import { App } from './App'
+import { connectControl } from './control'
 import { Tooltips } from './Tooltips'
 import { saveNow } from './store'
 import { connectPtyEvents, refitAll } from './terminals'
 
 connectPtyEvents()
+connectControl()
 // A terminal measures its cells from the font; once Geist Mono has loaded,
 // measure again in case one was opened before it arrived.
 void document.fonts.load('13px "Geist Mono Variable"').then(refitAll)

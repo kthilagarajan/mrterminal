@@ -11,7 +11,7 @@ import { configDir } from './config'
  * framework or a wrapper sits in between.
  *
  *   ESC ] 133 ; C BEL   a command is about to run
- *   ESC ] 133 ; D BEL   it finished
+ *   ESC ] 133 ; D ; n BEL  it finished with exit code n
  *   ESC ] 133 ; A BEL   the prompt is being drawn
  */
 
@@ -58,9 +58,10 @@ if [[ -n $MRT_ZDOTDIR_UNSET && $USER_ZDOTDIR == $HOME ]]; then unset ZDOTDIR; el
 if [[ -f $USER_ZDOTDIR/.zshrc ]]; then . $USER_ZDOTDIR/.zshrc; fi
 
 ${CWD_REPORT}
-__mrt_precmd() { builtin printf '\\e]133;D\\a\\e]133;A\\a'; __mrt_cwd }
+# First in line, so $? is still the exit code of the command that just ended.
+__mrt_precmd() { builtin printf '\\e]133;D;%s\\a\\e]133;A\\a' $?; __mrt_cwd }
 __mrt_preexec() { builtin printf '\\e]133;C\\a' }
-precmd_functions+=(__mrt_precmd)
+precmd_functions=(__mrt_precmd $precmd_functions)
 preexec_functions+=(__mrt_preexec)
 unset MRT_ZDOTDIR MRT_ZDOTDIR_UNSET USER_ZDOTDIR
 `
@@ -78,7 +79,8 @@ done
 unset __mrt_f
 ${CWD_REPORT}
 if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 4) )); then
-  __mrt_prompt() { builtin printf '\\e]133;D\\a\\e]133;A\\a'; }
+  # Runs first and hands $? on, so prompts that show the exit code still see it.
+  __mrt_prompt() { local s=$?; builtin printf '\\e]133;D;%s\\a\\e]133;A\\a' $s; return $s; }
   PROMPT_COMMAND="__mrt_prompt\${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
   PS0='\\e]133;C\\a'"$PS0"
 fi
@@ -126,9 +128,27 @@ export function shellLaunch(shell: string, env: Record<string, string>): { args:
   return { args: ['-l'], env }
 }
 
+export interface Mark {
+  kind: 'A' | 'C' | 'D'
+  /** Exit code carried by a `D` mark (`133;D;<code>`). */
+  exitCode?: number
+  /** Where the mark starts and ends in the text it was found in. */
+  start: number
+  end: number
+}
+
+/** Every complete command mark in a piece of terminal output, in order. */
+export function parseMarks(text: string): Mark[] {
+  const marks: Mark[] = []
+  for (const match of text.matchAll(/\x1b\]133;([ACD])(?:;(\d+))?[^\x07\x1b]*(?:\x07|\x1b\\)/g)) {
+    const mark: Mark = { kind: match[1] as Mark['kind'], start: match.index, end: match.index + match[0].length }
+    if (match[2] !== undefined) mark.exitCode = Number(match[2])
+    marks.push(mark)
+  }
+  return marks
+}
+
 /** The last command mark in a chunk of terminal output, if any. */
 export function lastMark(text: string): 'A' | 'C' | 'D' | null {
-  let mark: 'A' | 'C' | 'D' | null = null
-  for (const match of text.matchAll(/\x1b\]133;([ACD])/g)) mark = match[1] as 'A' | 'C' | 'D'
-  return mark
+  return parseMarks(text).at(-1)?.kind ?? null
 }
