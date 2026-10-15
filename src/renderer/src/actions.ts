@@ -36,6 +36,11 @@ export async function boot(): Promise<void> {
   // Nothing to restore, or the user already told us what they want.
   if (!hasSession) applyRestore('resume', false)
   else if (config.settings.restoreOnLaunch !== 'ask') applyRestore(config.settings.restoreOnLaunch, false)
+  // With no projects there is still somewhere to type: a shell in the home folder.
+  if (config.projects.length === 0) {
+    const id = addProject(window.api.home, 'Home')
+    withDock(id, (dock) => dock.openShell())
+  }
 }
 
 export function applyRestore(mode: Exclude<RestoreMode, 'ask'>, remember: boolean): void {
@@ -44,7 +49,13 @@ export function applyRestore(mode: Exclude<RestoreMode, 'ask'>, remember: boolea
     config = { ...config, projects: config.projects.map((p) => ({ ...p, terminals: [], layout: null })) }
   }
   if (remember) config = { ...config, settings: { ...config.settings, restoreOnLaunch: mode } }
-  setState({ ready: true, restoreRun: mode === 'resume', config })
+  // Projects load when first shown, but what was running when the app quit
+  // starts again right away, in every project.
+  const { opened } = getState()
+  const running = mode === 'resume'
+    ? config.projects.filter((p) => !opened.includes(p.id) && p.terminals.some((t) => t.resume)).map((p) => p.id)
+    : []
+  setState({ ready: true, restoreRun: mode === 'resume', config, opened: [...opened, ...running] })
 }
 
 function activeProject(): Project | undefined {

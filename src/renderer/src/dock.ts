@@ -367,7 +367,7 @@ export class ProjectDock {
   snapshot(): Pick<Preset, 'terminals' | 'layout'> {
     const terminals = getProject(this.projectId)?.terminals ?? []
     return {
-      terminals: terminals.map((t) => ({ ...t, cwd: getRuntime(t.id)?.cwd ?? t.cwd })),
+      terminals: terminals.map(({ resume: _running, ...t }) => ({ ...t, cwd: getRuntime(t.id)?.cwd ?? t.cwd })),
       layout: terminals.length > 0 ? this.api.toJSON() : null
     }
   }

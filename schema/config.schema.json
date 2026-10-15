@@ -113,7 +113,8 @@
         "id": { "type": "string", "description": "Unique among all terminals; also its id for `mrt` and its MRT_TERMINAL_ID." },
         "title": { "type": "string", "description": "Tab title." },
         "cwd": { "type": "string", "description": "Absolute folder the shell starts in." },
-        "command": { "type": "string", "description": "Command line typed into the shell on start. Absent for a plain shell." }
+        "command": { "type": "string", "description": "Command line typed into the shell on start. Absent for a plain shell." },
+        "resume": { "type": "string", "description": "Command line that was running in the terminal (typed by hand or not) when the app quit; it runs again on the next launch in place of `command`. Kept up to date by the app." }
       }
     },
     "CustomCommand": {

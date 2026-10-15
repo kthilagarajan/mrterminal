@@ -6,8 +6,8 @@ import { applyAppearance } from './appearance'
 import { patchConfig, patchSettings, setState, useStore } from './store'
 
 const TABS = [
-  ['appearance', 'Appearance'],
   ['general', 'General'],
+  ['appearance', 'Appearance'],
   ['shortcuts', 'Shortcuts']
 ] as const
 
@@ -41,7 +41,7 @@ const FONT_SUGGESTIONS = [
 export function SettingsDialog({ settings, compact }: { settings: Settings; compact: boolean }) {
   const close = (): void => setState({ settingsOpen: false })
   const update = useStore((s) => s.update)
-  const [tab, setTab] = useState<Tab>('appearance')
+  const [tab, setTab] = useState<Tab>('general')
   const appearance = (patch: Partial<Settings>): void => {
     patchSettings(patch)
     applyAppearance({ ...settings, ...patch })

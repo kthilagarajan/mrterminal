@@ -278,6 +278,20 @@ kbd {
   border-right: 1px solid var(--border);
 }
 
+/* While a terminal has the keyboard, the sidebar steps back a little so the
+   eye goes to where typing lands. */
+.sidebar > :not(.sidebar-resize) {
+  transition: opacity 0.15s ease;
+}
+
+.app:has(.workspaces :focus-within) .sidebar > :not(.sidebar-resize) {
+  opacity: 0.6;
+}
+
+.app:has(.workspaces :focus-within) .sidebar:hover > :not(.sidebar-resize) {
+  opacity: 1;
+}
+
 .sidebar-head {
   display: flex;
   align-items: center;

@@ -34,6 +34,7 @@ function normalizeProject(raw: Partial<Project>): Project | null {
           .filter((t) => t && typeof t.id === 'string' && typeof t.cwd === 'string')
           // Plain shells used to be titled "shell"; they are named after their folder now.
           .map((t) => (!t.command && t.title === 'shell' ? { ...t, title: basename(t.cwd) || t.title } : t))
+          .map(({ resume, ...t }) => (typeof resume === 'string' && resume ? { ...t, resume } : t))
       : [],
     layout: raw.layout ?? null,
     expanded: raw.expanded !== false,

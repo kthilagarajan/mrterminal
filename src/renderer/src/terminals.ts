@@ -126,13 +126,14 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
   })
 
   // A plain shell restarts where it was left; a command where it was launched.
-  const start = (runCommand: boolean, directory = def.command ? def.cwd : cwd): void => {
+  // The first start picks up whatever was running when the app last quit.
+  const start = (runCommand: boolean, directory = def.command ? def.cwd : cwd, command = def.command): void => {
     started = true
     exited = false
     cwd = directory
     setStatus(id, { busy: false, process: '' })
     void window.api.pty
-      .create({ id, cwd: directory, cols: term.cols, rows: term.rows, command: def.command, run: runCommand })
+      .create({ id, cwd: directory, cols: term.cols, rows: term.rows, command, run: runCommand })
       .then((result) => {
         if (!result.ok) {
           exited = true
@@ -152,14 +153,14 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       if (wantsFocus) term.focus()
     }
     fit.fit()
-    if (!started) start(run)
+    if (!started) start(run, undefined, def.resume ?? def.command)
     else window.api.pty.resize(id, term.cols, term.rows)
   }
   // A terminal in a background tab is never laid out. Its command still has
   // to start (think of a restored session), so begin at the default size; it
   // is resized the moment the tab is shown.
   const startHidden = window.setTimeout(() => {
-    if (!started) start(run)
+    if (!started) start(run, undefined, def.resume ?? def.command)
   }, 500)
   const observer = new ResizeObserver(() => {
     cancelAnimationFrame(frame)
@@ -253,7 +254,7 @@ export function setTerminalTheme(theme: Theme): void {
 export function connectPtyEvents(): void {
   window.api.pty.onData(({ id, data }) => runtimes.get(id)?.term.write(data))
   window.api.pty.onExit(({ id, exitCode, signal }) => exitHandlers.get(id)?.(signal ? 1 : exitCode))
-  window.api.pty.onStatus(({ id, busy, process }) => {
-    if (runtimes.has(id)) setStatus(id, { busy, process })
+  window.api.pty.onStatus(({ id, busy, process, command }) => {
+    if (runtimes.has(id)) setStatus(id, { busy, process, command })
   })
 }

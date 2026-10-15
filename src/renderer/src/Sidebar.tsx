@@ -756,12 +756,6 @@ export function Sidebar({ config }: { config: Config }) {
           <span className="brand-name">MrTerminal</span>
         </span>
         <span className="sidebar-head-actions">
-          <IconButton
-            icon="compact"
-            className={config.sidebarCompact ? 'icon-btn-on' : ''}
-            title={config.sidebarCompact ? 'Show project paths' : 'Compact: hide project paths'}
-            onClick={() => patchConfig({ sidebarCompact: !config.sidebarCompact })}
-          />
           <IconButton icon="plus" title="Add a project folder" onClick={() => void pickProject()} />
         </span>
       </header>

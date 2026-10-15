@@ -24,6 +24,11 @@ export interface TerminalDef {
   cwd: string
   /** Command typed into the shell on start. Absent for a plain shell. */
   command?: string
+  /**
+   * The command line that was running in it when last saved, typed by hand or
+   * not. It runs again when the app restarts, in place of `command`.
+   */
+  resume?: string
 }
 
 export interface CustomCommand {
@@ -125,6 +130,8 @@ export interface PtyStatus {
   /** A foreground process other than the shell is running. */
   busy: boolean
   process: string
+  /** The command line running, when busy and the shell reports it. */
+  command?: string
 }
 
 /** A command line run in a terminal, as reported by its shell. */

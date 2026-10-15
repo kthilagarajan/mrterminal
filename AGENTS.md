@@ -89,7 +89,10 @@ site/           the website (Astro + Tailwind, its own package.json); published
   foreground was started by the shell's startup files. The UI draws a
   terminal as running only after it has been busy for 2 seconds
   (`TermStatus.shown` in `store.ts`), so a quick `ls` does not flicker;
-  decisions such as "restart if stopped" use `busy`. Never
+  decisions such as "restart if stopped" use `busy`. The `C` mark also
+  carries the command line (`cmdline_url=`); whatever has been shown
+  running is saved as `TerminalDef.resume` and run again on the next
+  launch, in every project, typed by hand or not. Never
   treat an open terminal as running: the UI promises that green means a
   command is executing. `shellIntegration.test.ts` runs real shells; set
   `MRT_TEST_ZSH` to test a zsh that is not in `/bin`.

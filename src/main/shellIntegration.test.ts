@@ -7,7 +7,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 const home = mkdtempSync(join(tmpdir(), 'mrterminal-shell-'))
 process.env.MRTERMINAL_HOME = join(home, 'config')
-const { lastMark, shellLaunch } = await import('./shellIntegration')
+const { lastMark, parseMarks, shellLaunch } = await import('./shellIntegration')
 writeFileSync(join(home, '.zshenv'), process.env.MRT_TEST_ZSHENV ?? '')
 
 // Killed shells may still be writing (history, sessions) as this runs; retry.
@@ -53,6 +53,27 @@ describe('lastMark', () => {
     expect(lastMark('hello')).toBeNull()
     expect(lastMark('\x1b]133;C\x07output')).toBe('C')
     expect(lastMark('\x1b]133;C\x07out\x1b]133;D\x07\x1b]133;A\x07$ ')).toBe('A')
+  })
+})
+
+const commandLines = (output: string): (string | undefined)[] =>
+  parseMarks(output).filter((m) => m.kind === 'C').map((m) => m.commandLine)
+
+for (const shell of [zsh, bash].filter((s): s is string => !!s)) {
+  it(`${shell} reports each command line, special characters intact`, async () => {
+    const output = await session(shell, {}, ['echo "a;b 100%" ü', 'true'])
+    expect(commandLines(output)).toEqual(['echo "a;b 100%" ü', 'true', 'exit'])
+  }, 15000)
+}
+
+describe('parseMarks', () => {
+  it('reads exit codes and command lines', () => {
+    const marks = parseMarks('\x1b]133;C;cmdline_url=npm%20run%3Bdev\x07x\x1b]133;D;3\x07\x1b]133;C;cmdline_url=%zz\x07')
+    expect(marks.map((m) => [m.kind, m.commandLine, m.exitCode])).toEqual([
+      ['C', 'npm run;dev', undefined],
+      ['D', undefined, 3],
+      ['C', undefined, undefined]
+    ])
   })
 })
 

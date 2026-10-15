@@ -35,6 +35,8 @@ interface Session {
   entered: boolean
   /** End of the previous chunk, in case a mark was split across two. */
   tail: string
+  /** The command line running now, when the shell reports it. */
+  line?: string
   /** Output offset where the last mark found ended; marks before it are already counted. */
   markedUpTo: number
   /** The most recent output; its first character is output offset `outputStart`. */
@@ -333,7 +335,8 @@ export class PtyManager {
 
     const text = session.tail + data
     const textStart = base - session.tail.length
-    session.tail = text.slice(-64)
+    // Long enough for a C mark with its command line (see shellIntegration.ts).
+    session.tail = text.slice(-4096)
     for (const mark of parseMarks(text)) {
       const start = textStart + mark.start
       const end = textStart + mark.end
@@ -342,6 +345,7 @@ export class PtyManager {
       session.integrated = true
       const open = session.commands.at(-1)
       if (mark.kind === 'A') session.prompted = true
+      session.line = mark.kind === 'C' ? mark.commandLine : undefined
       if (mark.kind === 'C') {
         session.starting = false
         if (open && open.end === undefined) open.end = start
@@ -351,7 +355,7 @@ export class PtyManager {
         open.end = start
         open.exitCode = mark.exitCode
       }
-      this.setStatus(id, session, mark.kind === 'C', session.process)
+      this.setStatus(id, session, mark.kind === 'C', session.process, true)
     }
   }
 
@@ -401,12 +405,13 @@ export class PtyManager {
     session.timers = []
   }
 
-  private setStatus(id: string, session: Session, busy: boolean, process: string): void {
-    if (busy === session.busy && process === session.process) return
+  private setStatus(id: string, session: Session, busy: boolean, process: string, marked = false): void {
+    // A new C mark while busy is a new command line (zsh can run one from a hook).
+    if (busy === session.busy && process === session.process && !(marked && busy)) return
     if (busy) session.sawBusy = true
     session.busy = busy
     session.process = process
-    this.events.status({ id, busy, process })
+    this.events.status({ id, busy, process, command: busy ? session.line : undefined })
   }
 
   /**

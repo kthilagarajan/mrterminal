@@ -12,6 +12,8 @@ export interface TermStatus {
    */
   shown: boolean
   process: string
+  /** The command line running, when the shell reports it. */
+  command?: string
   /** Set once the shell has exited with a non-zero code. */
   exitCode?: number
 }
@@ -171,6 +173,18 @@ export function setShellCwd(id: string, cwd: string): void {
   editProject(project.id, (p) => ({ ...p, terminals: p.terminals.map((t) => (t.id === id ? { ...t, cwd } : t)) }))
 }
 
+/**
+ * Remember the command line running in a terminal, so it runs again when the
+ * app restarts, whether it came from the sidebar or was typed by hand.
+ */
+function setResume(id: string, command: string | undefined): void {
+  const project = state.config?.projects.find((p) => p.terminals.some((t) => t.id === id))
+  const def = project?.terminals.find((t) => t.id === id)
+  if (!project || !def || def.resume === command) return
+  const update = ({ resume: _old, ...t }: TerminalDef): TerminalDef => (command ? { ...t, resume: command } : t)
+  editProject(project.id, (p) => ({ ...p, terminals: p.terminals.map((t) => (t.id === id ? update(t) : t)) }))
+}
+
 export function removeTerminalDef(projectId: string, id: string): void {
   editProject(projectId, (p) => ({ ...p, terminals: p.terminals.filter((t) => t.id !== id) }))
   cancelShow(id)
@@ -191,14 +205,21 @@ function cancelShow(id: string): void {
 
 export function setStatus(id: string, status: Omit<TermStatus, 'shown'>): void {
   const shown = status.busy && (state.statuses[id]?.shown ?? false)
-  if (!status.busy) cancelShow(id)
-  else if (!shown && !showTimers.has(id)) {
+  // Only what has been running long enough to show counts as running at quit.
+  if (shown && status.command) setResume(id, status.command)
+  if (!status.busy) {
+    cancelShow(id)
+    // Not on the reset a starting terminal does, which would forget it.
+    if (state.statuses[id]?.busy) setResume(id, undefined)
+  } else if (!shown && !showTimers.has(id)) {
     showTimers.set(
       id,
       window.setTimeout(() => {
         showTimers.delete(id)
         const current = state.statuses[id]
-        if (current?.busy) setState({ statuses: { ...state.statuses, [id]: { ...current, shown: true } } })
+        if (!current?.busy) return
+        setState({ statuses: { ...state.statuses, [id]: { ...current, shown: true } } })
+        if (current.command) setResume(id, current.command)
       }, SHOW_AFTER_MS)
     )
   }
