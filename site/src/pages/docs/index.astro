@@ -5,7 +5,7 @@ const base = import.meta.env.BASE_URL
 
 <Docs
   title="Getting started"
-  description="Install MrTerminal on macOS, add a project, run its scripts in one click, arrange terminals, save presets and restore sessions."
+  description="Install MrTerminal on macOS, Windows or Linux, add a project, run its scripts in one click, arrange terminals, save presets and restore sessions."
 >
   <h1>Getting started</h1>
   <p>
@@ -24,6 +24,15 @@ const base = import.meta.env.BASE_URL
   <p>
     MrTerminal checks for updates when it starts and every few hours. When an update is ready, an <strong>Update to
     x.y.z</strong> button appears in the top bar.
+  </p>
+
+  <p>
+    On Windows 10/11 (x64), download and run the <code>win-x64-setup.exe</code> installer. The app is unsigned.
+    PowerShell is the default shell; PowerShell 7 can be selected in Settings.
+    On Linux (x64), use the <code>.deb</code> package or make the <code>.AppImage</code> executable and run it.
+    AppImages need FUSE 2, or use <code>--appimage-extract-and-run</code>.
+    On Windows and Linux, the update button opens the release page for manual installation.
+    After installing the CLI on Windows, add the displayed bin directory to your user Path and open a new terminal.
   </p>
 
   <h2>Add a project</h2>

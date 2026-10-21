@@ -1,40 +1,76 @@
 name: Release
 
-# Builds the macOS app and attaches the .dmg files to a GitHub release.
-# Runs when a version tag is pushed (`git tag v0.1.0 && git push --tags`),
-# or by hand from the Actions tab (the files are then run artifacts).
-# The .zip files are what the in-app updater downloads; the tag must match
-# the version in package.json.
+# Main builds are downloadable Actions artifacts; version tags publish a release
+# only after every platform has built and passed its checks.
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  mac:
-    runs-on: macos-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+          - os: ubuntu-22.04
+            platform: linux
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Verify release version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: node -e "if ('v' + require('./package.json').version !== process.env.GITHUB_REF_NAME) process.exit(1)"
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm run dist -- --publish never
+      - run: npm run dist -- --${{ matrix.platform }} --publish never
+      - name: Smoke test packaged Linux app
+        if: matrix.platform == 'linux'
+        run: xvfb-run -a node scripts/smoke-packaged.cjs dist/linux-unpacked/mrterminal
+      - name: Smoke test packaged Windows app
+        if: matrix.platform == 'win'
+        run: node scripts/smoke-packaged.cjs dist/win-unpacked/MrTerminal.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: MrTerminal-mac
+          name: MrTerminal-${{ matrix.platform }}
           path: |
             dist/*.dmg
             dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.deb
           if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: MrTerminal-*
+          path: release
+          merge-multiple: true
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.dmg dist/*.zip --title "MrTerminal $GITHUB_REF_NAME" --generate-notes
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --verify-tag --title "MrTerminal $GITHUB_REF_NAME" --generate-notes

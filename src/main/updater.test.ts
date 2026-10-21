@@ -18,7 +18,7 @@ describe('isNewer', () => {
   })
 })
 
-describe('swapScript', () => {
+describe.skipIf(process.platform === 'win32')('swapScript', () => {
   let dir: string
   let app: string
   let next: string

@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { chmodSync, existsSync, lstatSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import { app, dialog, type BrowserWindow } from 'electron'
 import { configDir } from './config'
 
@@ -49,7 +49,29 @@ function linkAsAdmin(target: string, path: string): Promise<void> {
 /** Put `mrt` on the PATH: /usr/local/bin where possible, else ~/.local/bin. */
 export async function installCli(win: BrowserWindow | null): Promise<void> {
   if (process.platform === 'win32') {
-    void dialog.showMessageBox({ message: "The 'mrt' command is not available on Windows yet." })
+    const script = join(configDir, 'bin', 'mrt.cmd')
+    const cli = join(app.getAppPath(), 'out', 'main', 'cli.js')
+    // Batch expands percent signs even inside quotes. Delayed expansion must
+    // be off so installation paths containing exclamation marks also work.
+    const batch = (s: string): string => s.replace(/%/g, '%%')
+    mkdirSync(dirname(script), { recursive: true })
+    writeFileSync(script, [
+      '@echo off',
+      'setlocal DisableDelayedExpansion',
+      'set "ELECTRON_RUN_AS_NODE=1"',
+      `set "MRT_APP=${batch(process.execPath)}"`,
+      `set "MRT_APP_ARG=${app.isPackaged ? '' : batch(app.getAppPath())}"`,
+      `"${batch(process.execPath)}" "${batch(cli)}" %*`,
+      'exit /b %errorlevel%',
+      ''
+    ].join('\r\n'))
+    const options = {
+      type: 'info' as const,
+      message: "Installed the 'mrt' command",
+      detail: `${script}\n\nAdd ${dirname(script)} to your user Path in Windows Environment Variables, then open a new terminal.\n\nTry: mrt status\nTeach your coding agent: mrt skill install`
+    }
+    if (win) await dialog.showMessageBox(win, options)
+    else await dialog.showMessageBox(options)
     return
   }
   const target = launcher()
@@ -72,7 +94,7 @@ export async function installCli(win: BrowserWindow | null): Promise<void> {
     installed = join(homedir(), '.local', 'bin', 'mrt')
     link(target, installed)
   }
-  const onPath = (process.env.PATH ?? '').split(':').includes(dirname(installed))
+  const onPath = (process.env.PATH ?? '').split(delimiter).includes(dirname(installed))
   const options = {
     type: 'info' as const,
     message: "Installed the 'mrt' command",

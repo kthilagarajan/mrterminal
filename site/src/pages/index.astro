@@ -6,7 +6,7 @@ const base = import.meta.env.BASE_URL
 const setupUrl = new URL(`${base}setup.md`, Astro.site).href
 const agentPrompt = `Read ${setupUrl} and set up MrTerminal for me.`
 const description =
-  'MrTerminal is a free macOS app that runs every script your projects define in one window: dev servers, tests and workers side by side, honest running status, presets and sessions that survive restarts. Coding agents can drive it with the mrt CLI.'
+  'MrTerminal is a free macOS, Windows and Linux app that runs every script your projects define in one window: dev servers, tests and workers side by side, honest running status, presets and sessions that survive restarts. Coding agents can drive it with the mrt CLI.'
 
 const features = [
   {
@@ -40,7 +40,7 @@ const features = [
   <main>
     <section class="mx-auto max-w-6xl px-5 pt-20 pb-14 text-center">
       <p class="mb-5 inline-block rounded-full border border-line bg-panel px-3 py-1 text-xs text-muted">
-        Free and open source · macOS · Apple silicon and Intel
+        Free and open source · macOS · Windows · Linux
       </p>
       <h1 class="mx-auto max-w-4xl text-4xl font-semibold tracking-tight text-white sm:text-6xl">
         One window for every terminal your projects need
@@ -53,7 +53,7 @@ const features = [
       <div class="mt-9 flex flex-wrap justify-center gap-3">
         <a
           class="rounded-lg bg-accent px-5 py-2.5 font-medium text-white hover:bg-accent/85"
-          href="https://github.com/kthilagarajan/mrterminal/releases/latest">Download for macOS</a
+          href="https://github.com/kthilagarajan/mrterminal/releases/latest">Download MrTerminal</a
         >
         <a class="rounded-lg border border-line bg-panel px-5 py-2.5 font-medium text-white hover:bg-panel2" href={`${base}docs/agents/`}
           >Use it with coding agents</a
@@ -182,7 +182,7 @@ const features = [
       <div class="mx-auto mt-6 max-w-xl text-left">
         <Term title="Terminal"><span class="text-run">$</span> xattr -cr /Applications/MrTerminal.app</Term>
       </div>
-      <p class="mt-6 text-sm text-faint">MrTerminal updates itself. Windows and Linux builds are planned.</p>
+      <p class="mt-6 text-sm text-faint">Windows: download the x64 .exe installer. Linux: choose the x64 AppImage or .deb. macOS updates itself; Windows and Linux updates open the release page.</p>
     </section>
   </main>
 </Base>

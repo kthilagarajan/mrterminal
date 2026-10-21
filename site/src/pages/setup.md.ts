@@ -11,7 +11,7 @@ export const GET: APIRoute = ({ site }) => {
 
 const setup = (home: string): string => `# Set up MrTerminal
 
-You are a coding agent, and the user wants you to work with MrTerminal: a macOS
+You are a coding agent, and the user wants you to work with MrTerminal: a macOS, Windows and Linux
 app that keeps their project's terminals (dev servers, tests, workers) in one
 window. You drive it with its \`mrt\` command, and the user watches every
 terminal you open or type into. Nothing runs hidden.
@@ -25,9 +25,12 @@ before you install an app or use \`sudo\`.** At the end, tell them what you did.
 command -v mrt && mrt --version
 \`\`\`
 
+On Windows PowerShell use \`Get-Command mrt -ErrorAction SilentlyContinue\` instead.
 If this prints a version, go to step 4.
 
-## 2. Install the MrTerminal app (macOS)
+## 2. Install the MrTerminal app
+
+On macOS:
 
 \`\`\`sh
 ls -d /Applications/MrTerminal.app
@@ -46,9 +49,18 @@ xattr -cr /Applications/MrTerminal.app   # not notarized by Apple yet
 
 The user can also download it themselves from
 https://github.com/kthilagarajan/mrterminal/releases/latest. MrTerminal is
-macOS-only for now. On another system, tell the user, and stop.
+available for macOS, Windows 10/11 (x64) and Linux (x64).
+On Windows, ask the user to install the latest win-x64-setup.exe. On Linux,
+use the .deb or AppImage (make it executable; FUSE 2 is required unless using
+--appimage-extract-and-run). Continue with step 3.
 
 ## 3. Put \`mrt\` on the PATH
+
+On Windows and Linux, choose **Shell → Install 'mrt' Command…** in the app.
+On Windows, add the displayed directory (normally
+%USERPROFILE%\\.mrterminal\\bin) to the user Path in Environment Variables and
+open a new terminal. On Linux, add ~/.local/bin to PATH if prompted. Then go
+to step 4. The commands below are for macOS.
 
 \`mrt\` ships inside the app and runs on the app's own runtime, so nothing else
 (Node, Bun) is needed. Link it:

@@ -6,8 +6,8 @@ directories:
 files:
   - out/**
   - package.json
-# node-pty ships N-API prebuilds for macOS and Windows, so no native rebuild
-# (and no Xcode toolchain) is needed to package.
+# node-pty uses N-API: prebuilds on macOS/Windows, a local build on Linux.
+# npm ci builds the Linux module; it also works in Electron without a rebuild.
 npmRebuild: false
 # node-pty executes a helper binary, which has to live outside the asar archive.
 asarUnpack:
@@ -32,7 +32,20 @@ mac:
   identity: '-'
   hardenedRuntime: false
 linux:
-  target: [AppImage]
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
   category: Development
+  maintainer: kthilagarajan <kthilagarajan@users.noreply.github.com>
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
 win:
-  target: [nsis]
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

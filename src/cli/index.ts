@@ -133,7 +133,7 @@ function installSkill(dir: string | undefined): { path: string; linked: { agent:
     }
     rmSync(link, { recursive: true, force: true })
     mkdirSync(dirname(link), { recursive: true })
-    symlinkSync(target, link)
+    symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir')
     linked.push({ agent, path: link })
   }
   return { path: file, linked, skipped }

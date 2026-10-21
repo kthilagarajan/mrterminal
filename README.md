@@ -65,8 +65,16 @@ installed font.
 
 ## Install
 
-MrTerminal runs on macOS (Apple silicon and Intel); Windows and Linux builds
-are planned.
+Download the build for your system from the [Releases](../../releases) page:
+
+- **macOS (Apple silicon and Intel):** `.dmg` (`arm64` or `x64`).
+- **Windows 10/11 (x64):** `win-x64-setup.exe`. Run the installer. The app is unsigned; Windows may show a SmartScreen prompt.
+- **Linux (x64):** `.AppImage` or `.deb`. Make the AppImage executable (`chmod +x MrTerminal-*.AppImage`) and run it, or install the Debian package with `sudo apt install ./MrTerminal-*.deb`. AppImages need FUSE 2 (or launch with `--appimage-extract-and-run`).
+
+Windows uses PowerShell by default, with your profile and PSReadLine. PowerShell
+and PowerShell 7 (`pwsh.exe`, selectable in Settings) report command status;
+custom Windows shells without integration do not provide running status or
+per-command exit codes.
 
 Download the `.dmg` from the [Releases](../../releases) page (`arm64` for Apple
 silicon, `x64` for Intel) and drag MrTerminal to Applications.
@@ -81,7 +89,8 @@ xattr -cr /Applications/MrTerminal.app
 ### Updates
 
 MrTerminal checks this repository's GitHub releases when it starts and every
-few hours. When a newer version exists an **Update to x.y.z** button appears in
+few hours. On Windows and Linux, the update button opens the release page to
+download and install the newer build. On macOS, when a newer version exists an **Update to x.y.z** button appears in
 the top bar; clicking it downloads the update, verifies its checksum, replaces
 the app and restarts it, and your terminals reopen. Settings shows the running
 version and has a "Check for updates" button.
@@ -93,7 +102,9 @@ To publish a version: bump `version` in `package.json`, commit, then
 
 Everything you can click, `mrt` can do from a shell, and so can a coding
 agent such as Claude Code. Choose **Shell → Install 'mrt' Command…** once,
-then:
+then add the displayed directory to your PATH if needed. On Windows, add
+`%USERPROFILE%\.mrterminal\bin` to your user Path in Environment Variables
+and open a new terminal. Then:
 
 ```sh
 mrt status                                   # what is open and what is running
@@ -128,11 +139,16 @@ Your projects, terminals, layouts and presets are stored in
 ```sh
 npm install
 npm run dev        # develop with hot reload
-npm run dist       # build MrTerminal.dmg into dist/ (run on a Mac)
+npm run dist       # package for the current OS into dist/
 ```
 
-Requires Node 20+. On macOS `npm install` needs no compiler: the pty library
-ships prebuilt binaries.
+Requires Node 22+. macOS and Windows use node-pty prebuilt binaries. Linux
+needs Python 3, make and a C++ compiler (`sudo apt install python3 make g++`).
+
+GitHub Actions builds all three platforms on pushes to main, pull requests and
+manual runs; installers are available as run artifacts. A `v<version>` tag
+publishes all platform downloads together after every build and check passes.
+The tag must match `package.json`.
 
 ## How it works
 

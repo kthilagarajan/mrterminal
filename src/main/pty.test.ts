@@ -55,3 +55,31 @@ for (const shell of [zsh, bash].filter((s): s is string => !!s)) {
     }, 20000)
   })
 }
+
+for (const shell of process.platform === 'win32' ? ['powershell.exe', 'pwsh.exe'] : []) {
+  describe(shell, () => {
+    it('tracks commands, failures, running status and Ctrl-C through a real pty', async () => {
+      const ptys = new PtyManager({ data: () => {}, exit: () => {}, status: () => {} }, () => shell)
+      try {
+        expect(ptys.create({ id: 'ps', cwd: home, cols: 120, rows: 24, command: "Write-Output 'first'", run: true })).toEqual({ ok: true })
+        expect(await ptys.waitForCommand('ps', 0, 15_000)).toMatchObject({ output: 'first', exitCode: 0, timedOut: false })
+        expect(ptys.info('ps')).toMatchObject({ busy: false, integrated: true })
+        let before = ptys.lastSeq
+        ptys.write('ps', 'cmd /c exit 3\r')
+        expect(await ptys.waitForCommand('ps', before, 8000)).toMatchObject({ exitCode: 3, timedOut: false })
+        before = ptys.lastSeq
+        ptys.write('ps', "Write-Error 'failed'\r")
+        expect(await ptys.waitForCommand('ps', before, 8000)).toMatchObject({ exitCode: 1, timedOut: false })
+        before = ptys.lastSeq
+        ptys.write('ps', 'Start-Sleep -Seconds 30\r')
+        expect(await ptys.waitForCommand('ps', before, 500)).toMatchObject({ running: true, timedOut: true })
+        expect(ptys.info('ps')?.busy).toBe(true)
+        ptys.write('ps', '\x03')
+        expect(await ptys.waitForIdle('ps', 8000)).toEqual({ timedOut: false })
+        expect(ptys.info('ps')?.busy).toBe(false)
+      } finally {
+        ptys.killAll()
+      }
+    }, 40_000)
+  })
+}

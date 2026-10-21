@@ -119,6 +119,45 @@ fi
 PROMPT_COMMAND="\${PROMPT_COMMAND:+$PROMPT_COMMAND; }__mrt_cwd"
 `
 
+// Wrap the existing prompt and reader so profiles, history and key bindings stay
+// in charge. Windows has no foreground-process fallback, so these marks also
+// power running status and per-command CLI waits there.
+const POWERSHELL_INIT = `
+Import-Module PSReadLine -ErrorAction Stop
+$global:__mrt_prompt = $function:prompt
+$global:__mrt_readline = $function:PSConsoleHostReadLine
+$global:__mrt_running = $false
+function global:prompt {
+  $ok = $?
+  $code = 0
+  if (!$ok) { if ($global:LASTEXITCODE) { $code = $global:LASTEXITCODE } else { $code = 1 } }
+  $esc = [char]27
+  $bel = [char]7
+  if ($global:__mrt_running) { [Console]::Write("$esc]133;D;$code$bel") }
+  $global:__mrt_running = $false
+  [Console]::Write("$esc]133;A$bel")
+  if ($PWD.Provider.Name -eq 'FileSystem') {
+    $uri = ([System.Uri]($PWD.Path + [IO.Path]::DirectorySeparatorChar)).AbsoluteUri
+    [Console]::Write("$esc]7;$uri$bel")
+  }
+  & $global:__mrt_prompt
+}
+function global:PSConsoleHostReadLine {
+  $line = & $global:__mrt_readline
+  if ($line.Trim().Length -gt 0) {
+    $esc = [char]27
+    $bel = [char]7
+    if ($line.Length -le 1000) {
+      $encoded = [Uri]::EscapeDataString($line)
+      [Console]::Write("$esc]133;C;cmdline_url=$encoded$bel")
+    } else { [Console]::Write("$esc]133;C$bel") }
+    $global:__mrt_running = $true
+    $global:LASTEXITCODE = 0
+  }
+  $line
+}
+`
+
 let written = false
 
 function writeFiles(): void {
@@ -132,9 +171,16 @@ function writeFiles(): void {
 
 /** Arguments and environment that start `shell` as a login shell with the marks enabled. */
 export function shellLaunch(shell: string, env: Record<string, string>): { args: string[]; env: Record<string, string> } {
-  if (process.platform === 'win32') return { args: [], env }
-  const name = basename(shell)
+  const name = basename(shell).replace(/\.exe$/i, '').toLowerCase()
   try {
+    if (process.platform === 'win32') {
+      if (name !== 'powershell' && name !== 'pwsh') return { args: [], env }
+      mkdirSync(dir, { recursive: true })
+      const script = join(dir, 'init.ps1')
+      writeFileSync(script, POWERSHELL_INIT)
+      const command = `. '${script.replace(/'/g, "''")}'`
+      return { args: ['-NoLogo', '-NoExit', '-ExecutionPolicy', 'Bypass', '-Command', command], env }
+    }
     if (name === 'zsh') {
       writeFiles()
       const zdotdir = join(dir, 'zsh')

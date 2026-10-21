@@ -84,7 +84,7 @@ function shellEnv(id: string): Record<string, string> {
 }
 
 export function defaultShell(): string {
-  if (process.platform === 'win32') return process.env.COMSPEC || 'powershell.exe'
+  if (process.platform === 'win32') return 'powershell.exe'
   if (process.env.SHELL && existsSync(process.env.SHELL)) return process.env.SHELL
   return process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash'
 }
