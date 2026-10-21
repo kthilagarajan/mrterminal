@@ -1,0 +1,2 @@
+# Shell launchers and bundled skill frontmatter need consistent line endings.
+* text=auto eol=lf

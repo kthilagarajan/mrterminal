@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 
 const home = mkdtempSync(join(tmpdir(), 'mrterminal-pty-'))
@@ -10,7 +11,8 @@ process.env.HOME = home
 const { PtyManager } = await import('./pty')
 
 // Killed shells may still be writing (history, sessions) as this runs; retry.
-afterAll(() => rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }))
+// Async retries let ConPTY finish releasing its working directory on Windows.
+afterAll(() => rm(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 }), 30_000)
 
 const zsh = [process.env.MRT_TEST_ZSH, '/bin/zsh', '/usr/bin/zsh'].find((p) => p && existsSync(p))
 const bash = ['/bin/bash', '/usr/bin/bash', '/opt/homebrew/bin/bash'].find((p) => {

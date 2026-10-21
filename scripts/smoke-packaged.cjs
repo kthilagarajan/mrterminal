@@ -1,7 +1,8 @@
 // Exercise the packaged Electron app, renderer, IPC and native pty together.
 const assert = require('node:assert/strict')
 const { spawn } = require('node:child_process')
-const { mkdtempSync, rmSync } = require('node:fs')
+const { mkdtempSync } = require('node:fs')
+const { rm } = require('node:fs/promises')
 const { connect } = require('node:net')
 const { tmpdir } = require('node:os')
 const { join, resolve } = require('node:path')
@@ -70,5 +71,5 @@ smoke().catch((err) => { console.error(err); process.exitCode = 1 }).finally(asy
     })
   } else child.kill('SIGTERM')
   for (let i = 0; i < 50 && !exited; i++) await new Promise((resolve) => setTimeout(resolve, 100))
-  rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  await rm(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 })
 })
