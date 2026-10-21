@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it } from 'vitest'
 
@@ -58,7 +58,12 @@ for (const shell of [zsh, bash].filter((s): s is string => !!s)) {
   })
 }
 
-for (const shell of process.platform === 'win32' ? ['powershell.exe', 'pwsh.exe'] : []) {
+const windowsShells = process.platform === 'win32'
+  ? ['powershell.exe', 'pwsh.exe'].filter((shell) =>
+      (process.env.PATH ?? '').split(delimiter).some((dir) => existsSync(join(dir, shell))))
+  : []
+
+for (const shell of windowsShells) {
   describe(shell, () => {
     it('tracks commands, failures, running status and Ctrl-C through a real pty', async () => {
       const ptys = new PtyManager({ data: () => {}, exit: () => {}, status: () => {} }, () => shell)
