@@ -273,6 +273,13 @@ src/renderer/  React UI
 `npm test` runs the tests (script detection, shell integration, the mrt
 protocol); `npm run typecheck` checks types.
 
+## Support
+
+If MrTerminal saves you some tab archaeology and you'd like to say thanks, you
+can [buy me a coffee](https://www.buymeacoffee.com/webtkdev).
+
+<a href="https://www.buymeacoffee.com/webtkdev"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&slug=webtkdev&button_colour=FFDD00&font_colour=000000&font_family=Inter&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="40"></a>
+
 ## License
 
 [MIT](LICENSE)
