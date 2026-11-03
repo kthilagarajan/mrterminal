@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { delimiter, join } from 'node:path'
+// posix, not the host's: the platform comes from `Env`, so tests can run anywhere.
+import { posix } from 'node:path'
 import type { EditorInfo } from '@shared/types'
 
 /**
@@ -61,20 +62,20 @@ interface Env {
 
 function findLaunch(editor: EditorDef, env: Env): Launch | null {
   if (env.platform === 'darwin') {
-    for (const dir of ['/Applications', join(env.home, 'Applications')]) {
+    for (const dir of ['/Applications', posix.join(env.home, 'Applications')]) {
       for (const app of editor.apps) {
-        const path = join(dir, `${app}.app`)
+        const path = posix.join(dir, `${app}.app`)
         if (env.exists(path)) return { kind: 'app', app: path }
       }
     }
     return null
   }
-  const dirs = env.path.split(env.platform === 'win32' ? ';' : delimiter).filter(Boolean)
+  const dirs = env.path.split(env.platform === 'win32' ? ';' : ':').filter(Boolean)
   const suffixes = env.platform === 'win32' ? ['.cmd', '.exe', '.bat'] : ['']
   for (const command of editor.commands) {
     for (const dir of dirs) {
       for (const suffix of suffixes) {
-        const file = (env.platform === 'win32' ? `${dir}\\` : join(dir, '/')) + command + suffix
+        const file = env.platform === 'win32' ? `${dir.replace(/\\$/, '')}\\${command}${suffix}` : posix.join(dir, command)
         if (env.exists(file)) return { kind: 'exec', file }
       }
     }
