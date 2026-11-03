@@ -11,6 +11,7 @@ import {
   type CallerContext,
   type ControlRequest,
   type ControlResponse,
+  type OpenAction,
   type TermInfo
 } from '@shared/control'
 import type { ScriptGroup } from '@shared/types'
@@ -136,7 +137,9 @@ export function createControl(deps: ControlDeps): (method: string, params: Param
           cwd: cwd ?? project.path,
           title: str(p.title),
           command: str(p.command),
-          placement: str(p.split) ?? 'auto'
+          placement: str(p.split) ?? 'auto',
+          new: p.new === true,
+          self: ctx(p).terminalId
         })) as TermInfo
       )
     },
@@ -151,8 +154,9 @@ export function createControl(deps: ControlDeps): (method: string, params: Param
         target,
         cwd: str(p.cwd) && resolve(ctx(p).cwd ?? project.path, str(p.cwd)!),
         title: str(p.title),
-        new: p.new === true
-      })) as { terminal: TermInfo; action: 'started' | 'restarted' | 'already-running' }
+        new: p.new === true,
+        self: ctx(p).terminalId
+      })) as { terminal: TermInfo; action: OpenAction }
       if (!p.wait) return started
       // Already running: wait for that run to end rather than for a next one.
       const running = started.action === 'already-running' ? ptys.runningSeq(started.terminal.id) : null

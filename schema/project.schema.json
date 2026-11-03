@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kthilagarajan/mrterminal/main/schema/project.schema.json",
+  "title": "MrTerminal project file",
+  "description": "<project>/.mrterminal/project.json: the project's own copy of its terminals, layout, custom commands, presets and script names, written by MrTerminal whenever they change. Folders are relative to the project, so it can be checked in; when present it wins over ~/.mrterminal/config.json for this project, and adding the folder on another machine brings it all back. While MrTerminal runs it owns this file.",
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "terminals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Terminal"
+      },
+      "description": "Terminals that are open, restored in this order."
+    },
+    "layout": {
+      "description": "Serialized dockview layout (splits, tabs, sizes) referring to the terminal ids. null tiles them."
+    },
+    "customCommands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/CustomCommand"
+      }
+    },
+    "presets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Preset"
+      }
+    },
+    "aliases": {
+      "type": "object",
+      "description": "Names given to detected scripts. Key: the folder relative to the project ('' for the root), a newline, then the command line, e.g. \"\\nnpm run dev\" or \"web\\npnpm run dev\".",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "Terminal": {
+      "type": "object",
+      "description": "A terminal: the user's shell started in `cwd`, with `command` typed into it.",
+      "required": [
+        "id",
+        "title",
+        "cwd"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique among all terminals; also its id for `mrt` and its MRT_TERMINAL_ID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Tab title."
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Folder the shell starts in: relative to the project (\".\" is the project itself), or absolute when outside it."
+        },
+        "command": {
+          "type": "string",
+          "description": "Command line typed into the shell on start. Absent for a plain shell."
+        },
+        "last": {
+          "type": "string",
+          "description": "The last command line that ran in the terminal long enough to show as running (typed by hand, from the sidebar or by an agent through mrt). Kept after it stops: restarting a terminal opened without `command`, the project's play button and the next launch run it again. Kept up to date by the app."
+        }
+      }
+    },
+    "CustomCommand": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "command"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Folder to run in: relative to the project, absolute, or starting with ~. Absent for the project root."
+        }
+      }
+    },
+    "Preset": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "terminals"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "terminals": {
+          "type": "array",
+          "description": "Terminals to open. Ids only need to be unique within the preset; launching gives each a fresh id, and reuses an open terminal with the same command and cwd.",
+          "items": {
+            "$ref": "#/$defs/Terminal"
+          }
+        },
+        "layout": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Dockview layout referring to the ids in `terminals`; null tiles them automatically."
+        }
+      }
+    }
+  }
+}

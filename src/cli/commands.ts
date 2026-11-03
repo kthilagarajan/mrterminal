@@ -14,7 +14,7 @@ export const COMMANDS: CommandHelp[] = [
   { name: 'projects', usage: 'projects', summary: 'Projects in the sidebar' },
   { name: 'project', usage: 'project add <folder> [--name N] | remove <project> | show <project>', summary: 'Add, remove or switch to a project' },
   { name: 'scripts', usage: 'scripts [--project P]', summary: 'What a project can run: detected scripts and custom commands' },
-  { name: 'open', usage: 'open [--cwd D] [--title T] [--split right|below|tab] [-- <command>]', summary: 'Open a terminal, optionally running a command' },
+  { name: 'open', usage: 'open [--cwd D] [--title T] [--split right|below|tab] [--new] [-- <command>]', summary: 'Open a terminal, optionally running a command; reuses a matching one if open' },
   { name: 'run', usage: 'run <script|command> [--cwd D] [--title T] [--new] [--wait] [--timeout S]', summary: 'Run a script or command; reuses its terminal if open' },
   { name: 'send', usage: 'send <terminal> <text> [--no-enter] [--wait] [--timeout S]', summary: 'Type a line into a terminal (and press Enter)' },
   { name: 'keys', usage: 'keys <terminal> <key>...', summary: 'Press keys: ctrl-c, enter, up, tab, esc...' },

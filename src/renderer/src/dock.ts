@@ -24,6 +24,7 @@ import {
   subscribe,
   uid
 } from './store'
+import { renameIds } from '@shared/ids'
 import { disposeRuntime, ensureRuntime, getRuntime, holdFocus } from './terminals'
 
 export type Placement = 'auto' | 'right' | 'below' | 'tab'
@@ -280,18 +281,6 @@ class Watermark implements IWatermarkRenderer {
   }
 }
 
-/** Rewrite the panel ids inside a saved layout, wherever they appear. */
-function renameIds(node: unknown, ids: Map<string, string>): unknown {
-  if (typeof node === 'string') return ids.get(node) ?? node
-  if (Array.isArray(node)) return node.map((item) => renameIds(item, ids))
-  if (node && typeof node === 'object') {
-    return Object.fromEntries(
-      Object.entries(node).map(([key, value]) => [ids.get(key) ?? key, renameIds(value, ids)])
-    )
-  }
-  return node
-}
-
 /** One project's arrangement of terminals: splits, tabs and their sizes. */
 export class ProjectDock {
   readonly api: DockviewApi
@@ -367,7 +356,12 @@ export class ProjectDock {
   snapshot(): Pick<Preset, 'terminals' | 'layout'> {
     const terminals = getProject(this.projectId)?.terminals ?? []
     return {
-      terminals: terminals.map(({ resume: _running, ...t }) => ({ ...t, cwd: getRuntime(t.id)?.cwd ?? t.cwd })),
+      // A command typed into a plain shell (by hand or by an agent) is saved
+      // as that terminal's command, so launching the preset runs it.
+      terminals: terminals.map(({ resume: _running, last, ...t }) => {
+        const command = t.command ?? last
+        return { ...t, ...(command ? { command } : {}), cwd: getRuntime(t.id)?.cwd ?? t.cwd }
+      }),
       layout: terminals.length > 0 ? this.api.toJSON() : null
     }
   }

@@ -36,6 +36,11 @@ export interface TermInfo {
   cwd: string
   /** The command the terminal was opened for; absent for a plain shell. */
   command?: string
+  /**
+   * A plain shell's last command line that ran long enough to show as
+   * running (typed by hand or sent by an agent); restarting runs it again.
+   */
+  last?: string
   /** A command is executing right now, as the shell reports it. */
   running: boolean
   /** Foreground process name. */
@@ -44,9 +49,17 @@ export interface TermInfo {
   active: boolean
   /** Set when the shell itself has exited (the tab waits for Enter to restart). */
   shellExitCode?: number
+  /** Only on the reply to `open`. */
+  action?: OpenAction
   /** The most recent command line, filled in by main. Output is left out. */
   lastCommand?: Omit<CommandResult, 'output' | 'truncated'>
 }
+
+/**
+ * What `open` / `run` did: opened a new terminal, or reused one that was
+ * already running it, had to start it again, or was an idle shell.
+ */
+export type OpenAction = 'started' | 'restarted' | 'already-running' | 'reused'
 
 export interface ProjectInfo {
   id: string
@@ -128,7 +141,7 @@ export function resolveTerminal(state: AppState, ref: string, ctx: CallerContext
   if (byId) return byId
 
   const lower = ref.toLowerCase()
-  let matches = all.filter((t) => t.title.toLowerCase() === lower || t.command === ref)
+  let matches = all.filter((t) => t.title.toLowerCase() === lower || (t.command ?? t.last) === ref)
   if (matches.length > 1) {
     const here = contextProject(state, ctx)
     const narrowed = matches.filter((t) => t.projectId === here?.id)

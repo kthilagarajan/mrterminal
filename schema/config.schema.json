@@ -114,7 +114,8 @@
         "title": { "type": "string", "description": "Tab title." },
         "cwd": { "type": "string", "description": "Absolute folder the shell starts in." },
         "command": { "type": "string", "description": "Command line typed into the shell on start. Absent for a plain shell." },
-        "resume": { "type": "string", "description": "Command line that was running in the terminal (typed by hand or not) when the app quit; it runs again on the next launch in place of `command`. Kept up to date by the app." }
+        "resume": { "type": "string", "description": "Command line that was running in the terminal (typed by hand or not) when the app quit; it runs again on the next launch in place of `command`. Kept up to date by the app." },
+        "last": { "type": "string", "description": "The last command line that ran in the terminal long enough to show as running (typed by hand, from the sidebar or by an agent through mrt). Kept after it stops: restarting a terminal opened without `command`, the project's play button and the next launch run it again. Kept up to date by the app." }
       }
     },
     "CustomCommand": {

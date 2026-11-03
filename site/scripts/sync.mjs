@@ -9,6 +9,7 @@ const repo = join(site, '..')
 const copies = [
   ['skills/mrt/SKILL.md', 'public/skill.md'],
   ['schema/config.schema.json', 'public/config.schema.json'],
+  ['schema/project.schema.json', 'public/project.schema.json'],
   ['assets/icon.svg', 'public/icon.svg'],
   ['docs/screenshots/workspace.png', 'public/screenshots/workspace.png'],
   ['docs/screenshots/preset.png', 'public/screenshots/preset.png'],
