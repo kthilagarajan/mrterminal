@@ -659,7 +659,8 @@ kbd {
 }
 
 /* Runs the project's stopped commands again; green like every "start". */
-.project-resume {
+.icon-btn.project-resume,
+.icon-btn.project-resume:hover:not(:disabled) {
   color: var(--green);
 }
 

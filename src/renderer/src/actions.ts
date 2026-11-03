@@ -16,7 +16,7 @@ import {
   rerunCommand,
   setState
 } from './store'
-import { disposeRuntime, getRuntime, setCleanExitHandler } from './terminals'
+import { disposeRuntime, getRuntime, setCleanExitHandler, terminalForCommand } from './terminals'
 
 // A shell that exits cleanly (the user typed `exit`) takes its tab with it.
 setCleanExitHandler((id) => findDock(id)?.close(id))
@@ -177,9 +177,7 @@ export function runScript(project: Project, group: ScriptGroup | null, script: D
 }
 
 function runIn(dock: ProjectDock, project: Project, group: ScriptGroup | null, script: DetectedScript, forceNew: boolean): void {
-  const existing = forceNew
-    ? undefined
-    : project.terminals.find((t) => t.command === script.command && t.cwd === script.cwd)
+  const existing = forceNew ? undefined : terminalForCommand(project.terminals, script.command, script.cwd)
   if (existing) {
     dock.focus(existing.id)
     // A terminal of a project that was only just loaded has not started yet;

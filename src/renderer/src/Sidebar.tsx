@@ -17,6 +17,7 @@ import {
 import { below, openMenu, type MenuEntry } from './ContextMenu'
 import { customCwd, renameCommand, withDock } from './dock'
 import { Icon } from './Icon'
+import { terminalForCommand } from './terminals'
 import { PresetDialog } from './PresetDialog'
 import {
   aliasKey,
@@ -35,9 +36,13 @@ import {
 type Statuses = Record<string, TermStatus>
 type ScriptState = 'running' | 'open' | 'none'
 
-/** The open terminal that runs this command, if there is one. */
+/**
+ * The open terminal that runs this command, if there is one: opened for it,
+ * or a shell where it was last run by hand or by an agent.
+ */
 function terminalFor(project: Project, script: { command?: string; cwd: string }) {
-  return project.terminals.find((t) => t.command === script.command && t.cwd === script.cwd)
+  if (!script.command) return project.terminals.find((t) => !t.command && t.cwd === script.cwd)
+  return terminalForCommand(project.terminals, script.command, script.cwd)
 }
 
 function scriptState(project: Project, statuses: Statuses, script: { command?: string; cwd: string }): ScriptState {

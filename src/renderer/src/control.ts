@@ -5,7 +5,7 @@ import { removeProjectNow, scriptTitle } from './actions'
 import { customCwd, folderName, getDock, findDock, renameCommand, withDock, type Placement, type ProjectDock } from './dock'
 import { addProjectFolder, aliasKey, editProject, getProject, getState, patchConfig, refreshScripts, uid } from './store'
 import { findReusable } from './reuse'
-import { getRuntime, holdFocus } from './terminals'
+import { getRuntime, holdFocus, liveTerminal } from './terminals'
 
 /**
  * Answers `mrt` (forwarded by main). Everything goes through the same
@@ -72,15 +72,7 @@ function termInfo(p: Project, t: TerminalDef): TermInfo {
 
 /** An open terminal of the project that should serve this request, if any (see `findReusable`). */
 function reusable(p: Project, want: { command?: string; cwd: string; title?: string }, self: unknown): TerminalDef | undefined {
-  return findReusable(
-    p.terminals,
-    want,
-    (t) => {
-      const status = getState().statuses[t.id]
-      return { busy: status?.busy ?? false, command: status?.command, cwd: getRuntime(t.id)?.cwd ?? t.cwd }
-    },
-    typeof self === 'string' ? self : undefined
-  )
+  return findReusable(p.terminals, want, liveTerminal, typeof self === 'string' ? self : undefined)
 }
 
 /**

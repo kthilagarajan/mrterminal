@@ -4,6 +4,7 @@ import { Terminal, type ITheme } from '@xterm/xterm'
 import { getTheme, type Theme } from '@shared/themes'
 import type { TerminalDef } from '@shared/types'
 import { findTerminalDef, getState, rerunCommand, setShellCwd, setStatus } from './store'
+import { findReusable, type LiveTerminal } from './reuse'
 import { cwdFromOsc7 } from './terminalCwd'
 
 /**
@@ -75,6 +76,20 @@ const MAC_KEYS: Record<string, string> = {
   'alt+ArrowLeft': '\x1bb',
   'alt+ArrowRight': '\x1bf',
   'alt+Backspace': '\x17'
+}
+
+/** What a terminal is doing now, for `findReusable`. */
+export function liveTerminal(def: TerminalDef): LiveTerminal {
+  const status = getState().statuses[def.id]
+  return { busy: status?.busy ?? false, command: status?.command, cwd: runtimes.get(def.id)?.cwd ?? def.cwd }
+}
+
+/**
+ * The open terminal for a command: the one opened for it, or a plain shell
+ * where it last ran (by hand or by an agent). Shared by the sidebar and `mrt`.
+ */
+export function terminalForCommand(terminals: TerminalDef[], command: string, cwd: string, exclude?: string): TerminalDef | undefined {
+  return findReusable(terminals, { command, cwd }, liveTerminal, exclude)
 }
 
 export function getRuntime(id: string): Runtime | undefined {
