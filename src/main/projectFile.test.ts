@@ -1,6 +1,6 @@
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Project } from '@shared/types'
 import {
@@ -13,6 +13,11 @@ import {
   writeProjectFiles
 } from './projectFile'
 
+// Real absolute paths for this platform, so the test also holds on Windows.
+const shop = resolve(tmpdir(), 'code', 'shop')
+const elsewhere = resolve(tmpdir(), 'elsewhere', 'shop')
+const outside = resolve(tmpdir(), 'logs')
+
 function project(path: string, extra: Partial<Project> = {}): Project {
   return {
     id: 'p1',
@@ -21,7 +26,7 @@ function project(path: string, extra: Partial<Project> = {}): Project {
     terminals: [
       { id: 'a', title: 'dev', cwd: path, command: 'npm run dev', resume: 'npm run dev' },
       { id: 'b', title: 'web', cwd: join(path, 'web'), last: 'make watch' },
-      { id: 'c', title: 'logs', cwd: '/var/log' }
+      { id: 'c', title: 'logs', cwd: outside }
     ],
     layout: { grid: 1 },
     customCommands: [{ id: 'x', name: 'db', command: 'docker compose up db' }],
@@ -35,22 +40,22 @@ function project(path: string, extra: Partial<Project> = {}): Project {
 
 describe('the project file', () => {
   it('stores folders relative to the project and leaves out session state', () => {
-    const file = toProjectFile(project('/code/shop'))
+    const file = toProjectFile(project(shop))
     expect(file.terminals).toEqual([
       { id: 'a', title: 'dev', cwd: '.', command: 'npm run dev' },
       { id: 'b', title: 'web', cwd: 'web', last: 'make watch' },
-      { id: 'c', title: 'logs', cwd: '/var/log' }
+      { id: 'c', title: 'logs', cwd: outside }
     ])
     expect(file.presets[0].terminals[0].cwd).toBe('api')
     expect(file).not.toHaveProperty('color')
   })
 
   it('reads back to the same project wherever it is checked out', () => {
-    const file = JSON.parse(JSON.stringify(toProjectFile(project('/code/shop'))))
-    const read = fromProjectFile('/elsewhere/shop', file)!
-    expect(read.terminals!.map((t) => t.cwd)).toEqual(['/elsewhere/shop', '/elsewhere/shop/web', '/var/log'])
+    const file = JSON.parse(JSON.stringify(toProjectFile(project(shop))))
+    const read = fromProjectFile(elsewhere, file)!
+    expect(read.terminals!.map((t) => t.cwd)).toEqual([elsewhere, join(elsewhere, 'web'), outside])
     expect(read.terminals![1].last).toBe('make watch')
-    expect(read.presets![0].terminals[0].cwd).toBe('/elsewhere/shop/api')
+    expect(read.presets![0].terminals[0].cwd).toBe(join(elsewhere, 'api'))
     expect(read.customCommands).toEqual([{ id: 'x', name: 'db', command: 'docker compose up db' }])
     expect(read.aliases).toEqual({ '\nnpm run dev': 'server' })
   })
@@ -58,18 +63,18 @@ describe('the project file', () => {
   it('tolerates junk', () => {
     expect(fromProjectFile('/p', null)).toBeNull()
     expect(fromProjectFile('/p', [1])).toBeNull()
-    expect(fromProjectFile('/p', { terminals: [null, { id: 1 }, { id: 'ok', cwd: '.' }] })).toEqual({
-      terminals: [{ id: 'ok', title: 'ok', cwd: '/p' }]
+    expect(fromProjectFile(shop, { terminals: [null, { id: 1 }, { id: 'ok', cwd: '.' }] })).toEqual({
+      terminals: [{ id: 'ok', title: 'ok', cwd: shop }]
     })
   })
 
   it('wins over the global config, keeping what ran at quit on this machine', () => {
-    const global = project('/code/shop')
+    const global = project(shop)
     const merged = applyProjectFile(global, {
-      terminals: [{ id: 'a', title: 'server', cwd: '/code/shop', command: 'npm run dev' }],
+      terminals: [{ id: 'a', title: 'server', cwd: shop, command: 'npm run dev' }],
       customCommands: []
     })
-    expect(merged.terminals).toEqual([{ id: 'a', title: 'server', cwd: '/code/shop', command: 'npm run dev', resume: 'npm run dev' }])
+    expect(merged.terminals).toEqual([{ id: 'a', title: 'server', cwd: shop, command: 'npm run dev', resume: 'npm run dev' }])
     expect(merged.customCommands).toEqual([])
     expect(merged.presets).toBe(global.presets)
     expect(merged.color).toBe('#e0569b')
@@ -94,8 +99,8 @@ describe('the project file', () => {
     writeProjectFiles([project(dir, { customCommands: [] })], written)
     expect(readProjectFile(dir)!.customCommands).toEqual([])
 
-    expect(hasProjectFile('/home/me', '/home/me')).toBe(false)
-    expect(hasProjectFile('/home/me/code', '/home/me')).toBe(true)
+    expect(hasProjectFile(shop, shop)).toBe(false)
+    expect(hasProjectFile(shop, tmpdir())).toBe(true)
     expect(existsSync(join(dir, '.mrterminal', 'project.json.tmp'))).toBe(false)
   })
 })
@@ -103,7 +108,7 @@ describe('the project file', () => {
 describe('the project file schema', () => {
   it('describes every field the app writes', () => {
     const schema = JSON.parse(readFileSync(join(__dirname, '..', '..', 'schema', 'project.schema.json'), 'utf8'))
-    const file = toProjectFile(project('/code/shop'))
+    const file = toProjectFile(project(shop))
     expect(Object.keys(file).filter((k) => !(k in schema.properties))).toEqual([])
     const termKeys = new Set(file.terminals.flatMap((t) => Object.keys(t)))
     expect([...termKeys].filter((k) => !(k in schema.$defs.Terminal.properties))).toEqual([])
