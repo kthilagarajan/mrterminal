@@ -16,6 +16,14 @@ export interface Settings {
   theme: string
   /** List what is running under each project in the sidebar. */
   showRunning: boolean
+  /** Id of the editor the top bar's "Open in" button uses. null = the first one found. */
+  editor: string | null
+}
+
+/** An editor or IDE found on this machine that can open a project folder. */
+export interface EditorInfo {
+  id: string
+  name: string
 }
 
 export interface TerminalDef {
@@ -197,7 +205,8 @@ export const DEFAULT_SETTINGS: Settings = {
   fontSize: 13,
   fontFamily: null,
   theme: 'midnight',
-  showRunning: true
+  showRunning: true,
+  editor: null
 }
 
 export function defaultConfig(): Config {

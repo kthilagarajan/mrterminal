@@ -4,6 +4,7 @@ import { applyRestore, boot, handleKey, handleMenu, pickProject, reopenClosed } 
 import { ContextMenu } from './ContextMenu'
 import { getDock, ProjectDock } from './dock'
 import { Icon } from './Icon'
+import { OpenInButton } from './OpenInButton'
 import { RestorePrompt } from './RestorePrompt'
 import { SettingsDialog } from './SettingsDialog'
 import { Sidebar } from './Sidebar'
@@ -129,6 +130,7 @@ export function App() {
               </button>
               <span className="spacer" />
               <UpdateButton />
+              <OpenInButton path={active.path} />
               <button className="btn" data-tooltip="Open a new terminal in this project's folder" onClick={() => getDock(active.id)?.openShell('auto')}>
                 <Icon name="plus" /> Terminal
               </button>

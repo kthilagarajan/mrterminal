@@ -1535,3 +1535,21 @@ kbd {
     transform: translate(-50%, -6px);
   }
 }
+
+/* Top bar "Open in <editor>": the editor's button and the menu of the others. */
+.split-btn {
+  display: inline-flex;
+  flex: none;
+}
+
+.split-btn > .btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split-btn > .split-btn-more {
+  padding: 0 6px;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
