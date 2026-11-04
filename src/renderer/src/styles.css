@@ -1064,9 +1064,55 @@ kbd {
 }
 
 .term {
+  position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+/* Cmd+F: floats over the terminal's top right corner. */
+.find-bar {
+  position: absolute;
+  z-index: 10;
+  top: 4px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-2);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+  font-family: inherit;
+}
+
+.find-bar[hidden] {
+  display: none;
+}
+
+.find-bar input {
+  width: 180px;
+  padding: 2px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.find-bar.find-none input {
+  color: var(--red);
+}
+
+.find-count {
+  min-width: 52px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 11.5px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .term .xterm {
@@ -1254,6 +1300,18 @@ kbd {
   gap: 10px;
   min-height: 24px;
   font-size: 12.5px;
+}
+
+.shortcut > span:first-child {
+  white-space: nowrap;
+}
+
+/* A shortcut with a second key stacks them rather than squeezing the label. */
+.shortcut-keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 .shortcut kbd {

@@ -228,13 +228,20 @@ a project you just removed, with its presets and commands.
 
 | | macOS | Linux / Windows |
 | --- | --- | --- |
-| New terminal | ⌘T | Ctrl+Shift+T |
+| New terminal | ⌘T or ⌘N | Ctrl+Shift+T or Ctrl+Shift+N |
+| Next / previous tab | ⇧⌘] / ⇧⌘[ (or ⌃Tab / ⇧⌃Tab) | Ctrl+Tab / Ctrl+Shift+Tab (or Ctrl+PageDown / PageUp) |
+| Go to tab 1–9 | ⌘1…⌘9 | Ctrl+1…9 |
 | Split right / down | ⌘D / ⇧⌘D | Ctrl+Shift+D / Ctrl+Shift+E |
 | Restart terminal | ⇧⌘R | Ctrl+Shift+R |
 | Clear | ⌘K | Ctrl+Shift+K |
 | Close terminal | ⌘W | Ctrl+Shift+W |
 | Reopen closed tab or project | ⇧⌘T | Ctrl+Shift+Z |
+| Find in terminal | ⌘F (Enter / ⇧Enter for next / previous) | Ctrl+Shift+F |
+| Bigger / smaller / default text | ⌘= / ⌘- / ⌘0 | Ctrl+= / Ctrl+- / Ctrl+0 |
+| Copy / paste | ⌘C / ⌘V | Ctrl+Shift+C / Ctrl+Shift+V |
 | Toggle sidebar | ⌘B | Ctrl+B |
+
+Settings › Shortcuts lists them all.
 
 ## Sessions
 
