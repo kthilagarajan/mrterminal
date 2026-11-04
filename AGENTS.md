@@ -177,14 +177,21 @@ Pushing a tag `v<version>` runs `.github/workflows/release.yml` on a macOS
 runner and publishes `MrTerminal-<version>-<arch>.dmg` and `.zip`. The tag must
 match `version` in `package.json`.
 
-The app is signed ad hoc, not with an Apple Developer certificate. Because of
-that:
+Pushes to `main` and `v*` tags sign the macOS app with the Developer ID
+Application certificate (team `UYGL2F73S3`) and notarize it with an App Store
+Connect API key, from the repository secrets `MAC_CERT_P12_BASE64`,
+`MAC_CERT_PASSWORD`, `APPLE_API_KEY_P8`, `APPLE_API_KEY_ID`,
+`APPLE_API_ISSUER` and `APPLE_TEAM_ID`. The workflow then checks the signature,
+the stapled ticket and Gatekeeper, and runs the packaged smoke test. Pull
+requests can't read secrets, so they build with an ad hoc signature and no
+hardened runtime.
 
-- Electron's `autoUpdater` / `electron-updater` cannot be used (Squirrel.Mac
-  rejects the signature). `updater.ts` downloads the `.zip`, checks GitHub's
-  SHA-256 digest, and swaps the `.app` with a small shell script after quit.
-- `hardenedRuntime` must stay off, or node-pty's native module fails to load.
-- First launch of a downloaded build needs `xattr -cr /Applications/MrTerminal.app`.
+- The hardened runtime needs `build/entitlements.mac.plist`: JIT and unsigned
+  executable memory for V8, and disabled library validation so node-pty's
+  native module and `spawn-helper` load.
+- `updater.ts` downloads the `.zip`, checks GitHub's SHA-256 digest, and swaps
+  the `.app` with a small shell script after quit. Electron's `autoUpdater`
+  could replace it now that builds are Developer ID signed, but isn't used yet.
 
 The update check uses GitHub's unauthenticated API, so it only works while the
 repository is public. README screenshots live in `docs/screenshots/`.

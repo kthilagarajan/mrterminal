@@ -18,9 +18,8 @@ const base = import.meta.env.BASE_URL
     Download the <code>.dmg</code> from the <a href="https://github.com/kthilagarajan/mrterminal/releases/latest"
       >latest release</a
     >. Use <code>arm64</code> for Apple silicon and <code>x64</code> for Intel. Drag MrTerminal to Applications.
-    The app isn't notarized by Apple yet, so macOS blocks the first launch. Clear the download flag once:
+    The app is signed and notarized by Apple, so it opens right away.
   </p>
-  <pre><code>xattr -cr /Applications/MrTerminal.app</code></pre>
   <p>
     MrTerminal checks for updates when it starts and every few hours. When an update is ready, an <strong>Update to
     x.y.z</strong> button appears in the top bar.
