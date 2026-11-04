@@ -3,7 +3,8 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { Terminal, type ITheme } from '@xterm/xterm'
 import { getTheme, type Theme } from '@shared/themes'
 import type { TerminalDef } from '@shared/types'
-import { getState, setShellCwd, setStatus } from './store'
+import { findTerminalDef, getState, rerunCommand, setShellCwd, setStatus } from './store'
+import { findReusable, type LiveTerminal } from './reuse'
 import { cwdFromOsc7 } from './terminalCwd'
 
 /**
@@ -77,6 +78,20 @@ const MAC_KEYS: Record<string, string> = {
   'alt+Backspace': '\x17'
 }
 
+/** What a terminal is doing now, for `findReusable`. */
+export function liveTerminal(def: TerminalDef): LiveTerminal {
+  const status = getState().statuses[def.id]
+  return { busy: status?.busy ?? false, command: status?.command, cwd: runtimes.get(def.id)?.cwd ?? def.cwd }
+}
+
+/**
+ * The open terminal for a command: the one opened for it, or a plain shell
+ * where it last ran (by hand or by an agent). Shared by the sidebar and `mrt`.
+ */
+export function terminalForCommand(terminals: TerminalDef[], command: string, cwd: string, exclude?: string): TerminalDef | undefined {
+  return findReusable(terminals, { command, cwd }, liveTerminal, exclude)
+}
+
 export function getRuntime(id: string): Runtime | undefined {
   return runtimes.get(id)
 }
@@ -126,8 +141,14 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
   })
 
   // A plain shell restarts where it was left; a command where it was launched.
+  // Starting again runs the terminal's command, or else the last one that
+  // ran in it, read afresh since `def` is the definition it opened with.
   // The first start picks up whatever was running when the app last quit.
-  const start = (runCommand: boolean, directory = def.command ? def.cwd : cwd, command = def.command): void => {
+  const start = (
+    runCommand: boolean,
+    directory = def.command ? def.cwd : cwd,
+    command = rerunCommand(findTerminalDef(id) ?? def)
+  ): void => {
     started = true
     exited = false
     cwd = directory
@@ -153,14 +174,14 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       if (wantsFocus) term.focus()
     }
     fit.fit()
-    if (!started) start(run, undefined, def.resume ?? def.command)
+    if (!started) start(run, undefined, def.resume ?? rerunCommand(def))
     else window.api.pty.resize(id, term.cols, term.rows)
   }
   // A terminal in a background tab is never laid out. Its command still has
   // to start (think of a restored session), so begin at the default size; it
   // is resized the moment the tab is shown.
   const startHidden = window.setTimeout(() => {
-    if (!started) start(run, undefined, def.resume ?? def.command)
+    if (!started) start(run, undefined, def.resume ?? rerunCommand(def))
   }, 500)
   const observer = new ResizeObserver(() => {
     cancelAnimationFrame(frame)

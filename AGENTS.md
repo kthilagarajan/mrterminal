@@ -12,7 +12,8 @@ follow, so avoid macOS-only assumptions outside clearly marked code.
 
 - Bundle id: `com.webtkdev.mrterminal`
 - Repository: `kthilagarajan/mrterminal` (public)
-- User state: `~/.mrterminal/config.json`
+- User state: `~/.mrterminal/config.json`, plus each project's own
+  `<project>/.mrterminal/project.json` (`main/projectFile.ts`)
 
 ## Commands
 
@@ -75,6 +76,13 @@ site/           the website (Astro + Tailwind, its own package.json); published
   debounces a save to main; main only adds the window bounds. Add a field in
   `shared/types.ts`, give it a default in `normalizeConfig`/`normalizeProject`
   (old config files must keep loading), then use it.
+- **A project's own file wins.** `ConfigStore` writes each project's
+  terminals, layout, commands, presets and aliases to
+  `<project>/.mrterminal/project.json` (folders relative, `resume` left out,
+  never for the home folder) whenever they change, and on load lays it over
+  the global entry; `addProjectFolder` does the same for a folder added later.
+  Ids that clash with another project's get fresh ones (`shared/ids.ts`). A
+  field in it goes in `schema/project.schema.json` too.
 - **A terminal is a `TerminalDef` plus a runtime.** `project.terminals` is the
   source of truth for what is open and is what gets restored. The dockview
   layout only says where they go and is reconciled against that list.
@@ -92,7 +100,10 @@ site/           the website (Astro + Tailwind, its own package.json); published
   decisions such as "restart if stopped" use `busy`. The `C` mark also
   carries the command line (`cmdline_url=`); whatever has been shown
   running is saved as `TerminalDef.resume` and run again on the next
-  launch, in every project, typed by hand or not. Never
+  launch, in every project, typed by hand or not. It is also kept as
+  `TerminalDef.last` after it stops: starting a plain shell again (restart,
+  the project's play button, reopening a closed tab, the next launch) runs
+  `command ?? last` (`rerunCommand` in `store.ts`). Never
   treat an open terminal as running: the UI promises that green means a
   command is executing. `shellIntegration.test.ts` runs real shells; set
   `MRT_TEST_ZSH` to test a zsh that is not in `/bin`.
@@ -129,6 +140,12 @@ command or for a line of output. The app listens on `~/.mrterminal/mrt.sock`
   and the same functions a click uses, and the terminal it touches is
   brought on screen (`reveal`, `holdFocus`) without taking the keyboard from
   the user. Don't add a way to run things the user cannot see.
+- **Reuse, don't pile up.** `mrt run` and `mrt open` go through
+  `findReusable` (`renderer/src/reuse.ts`, tested): a command reuses its
+  terminal (command + cwd) or a plain shell where it last ran; a titled shell
+  reuses the shell of that title. Never the caller's own terminal.
+  `mrt skill install` also writes a marked block (`cli/rules.ts`) into
+  `~/.claude/CLAUDE.md` / `~/.codex/AGENTS.md` telling agents to do so.
 - **Main resolves names, the renderer acts.** `main/control.ts` fetches the
   renderer's state, turns `--project`/`<terminal>` into ids
   (`resolveProject`/`resolveTerminal`, tested), and answers pty-level requests

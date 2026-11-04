@@ -35,7 +35,10 @@ const setupUrl = new URL(`${base}setup.md`, Astro.site).href
       <pre><code>mrt skill install</code></pre>
       This writes <code>~/.agents/skills/mrt/SKILL.md</code>, the folder coding agents share, so there is one copy
       for every agent. Claude Code reads <code>~/.claude/skills</code>, so it gets a link,
-      <code>~/.claude/skills/mrt</code>, to that folder. To keep the skill with one repository instead, run
+      <code>~/.claude/skills/mrt</code>, to that folder. It also adds a short, marked MrTerminal section to
+      <code>~/.claude/CLAUDE.md</code> (and <code>~/.codex/AGENTS.md</code>), which agents read every session, so
+      they run long-lived commands through <code>mrt</code> and reuse the terminals already open without being
+      reminded. To keep the skill with one repository instead, run
       <code>mrt skill install --dir .agents/skills/mrt</code> in it.
     </li>
     <li>

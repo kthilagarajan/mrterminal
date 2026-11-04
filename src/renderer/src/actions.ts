@@ -4,6 +4,7 @@ import { rememberClosed, takeClosed } from './closed'
 import { findDock, getDock, withDock, type ProjectDock } from './dock'
 import {
   addProject,
+  addProjectFolder,
   aliasKey,
   editProject,
   getProject,
@@ -12,9 +13,10 @@ import {
   refreshScripts,
   removeProject,
   restoreProject,
+  rerunCommand,
   setState
 } from './store'
-import { disposeRuntime, getRuntime, setCleanExitHandler } from './terminals'
+import { disposeRuntime, getRuntime, setCleanExitHandler, terminalForCommand } from './terminals'
 
 // A shell that exits cleanly (the user typed `exit`) takes its tab with it.
 setCleanExitHandler((id) => findDock(id)?.close(id))
@@ -66,7 +68,7 @@ function activeProject(): Project | undefined {
 export async function pickProject(): Promise<void> {
   const picked = await window.api.pickFolder()
   if (!picked) return
-  const id = addProject(picked.path, picked.name)
+  const id = await addProjectFolder(picked.path, picked.name)
   void refreshScripts(id)
 }
 
@@ -83,6 +85,21 @@ export function stopAll(project: Project): void {
   for (const terminal of project.terminals) {
     if (getState().statuses[terminal.id]?.busy) stopTerminal(terminal.id)
   }
+}
+
+/**
+ * Terminals of the project whose command ran this session and has stopped:
+ * what the project's play button starts again. Empty for a project that has
+ * only just been opened, which has nothing of its own to run again yet.
+ */
+export function stoppedTerminals(project: Project): Project['terminals'] {
+  const { ran, statuses } = getState()
+  return project.terminals.filter((t) => ran.includes(t.id) && !statuses[t.id]?.busy && rerunCommand(t))
+}
+
+/** Start again every command of the project that ran this session and stopped. */
+export function resumeAll(project: Project): void {
+  for (const terminal of stoppedTerminals(project)) getRuntime(terminal.id)?.restart(undefined, false)
 }
 
 /** Show a terminal: switch to its project and focus its tab. */
@@ -160,9 +177,7 @@ export function runScript(project: Project, group: ScriptGroup | null, script: D
 }
 
 function runIn(dock: ProjectDock, project: Project, group: ScriptGroup | null, script: DetectedScript, forceNew: boolean): void {
-  const existing = forceNew
-    ? undefined
-    : project.terminals.find((t) => t.command === script.command && t.cwd === script.cwd)
+  const existing = forceNew ? undefined : terminalForCommand(project.terminals, script.command, script.cwd)
   if (existing) {
     dock.focus(existing.id)
     // A terminal of a project that was only just loaded has not started yet;

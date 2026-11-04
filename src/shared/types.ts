@@ -29,6 +29,13 @@ export interface TerminalDef {
    * not. It runs again when the app restarts, in place of `command`.
    */
   resume?: string
+  /**
+   * The last command line that ran in it long enough to show as running,
+   * whoever typed it (the sidebar, the user, an agent through `mrt`). Unlike
+   * `resume` it is kept after the command stops, so starting the terminal
+   * again (restart, the project's play button, the next launch) runs it.
+   */
+  last?: string
 }
 
 export interface CustomCommand {

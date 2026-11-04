@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   Config,
   MenuAction,
+  Project,
   PtyCreateOptions,
   PtyExit,
   PtyStatus,
@@ -23,7 +24,9 @@ const api = {
   config: {
     load: (): Promise<Config> => ipcRenderer.invoke('config:load'),
     save: (config: Config): void => ipcRenderer.send('config:save', config),
-    saveSync: (config: Config): void => void ipcRenderer.sendSync('config:save-sync', config)
+    saveSync: (config: Config): void => void ipcRenderer.sendSync('config:save-sync', config),
+    /** What a project folder's own `.mrterminal/project.json` says, if it has one. */
+    projectFile: (path: string): Promise<Partial<Project> | null> => ipcRenderer.invoke('project:file', path)
   },
   pickFolder: (): Promise<{ path: string; name: string } | null> => ipcRenderer.invoke('dialog:pick-folder'),
   detectScripts: (path: string): Promise<ScriptGroup[]> => ipcRenderer.invoke('scripts:detect', path),

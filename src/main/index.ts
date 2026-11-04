@@ -5,6 +5,7 @@ import type { Config, MenuAction, PtyCreateOptions } from '@shared/types'
 import { keysFor, type ShortcutId } from '@shared/shortcuts'
 import { getTheme } from '@shared/themes'
 import type { Server } from 'node:net'
+import { readProjectFile } from './projectFile'
 import { ConfigStore, socketPath } from './config'
 import { createControl, serveControl } from './control'
 import { installCli } from './cliInstall'
@@ -198,6 +199,7 @@ function buildMenu(): void {
 
 function registerIpc(): void {
   ipcMain.handle('config:load', () => store.get())
+  ipcMain.handle('project:file', (_e, path: string) => readProjectFile(path))
   ipcMain.on('config:save', (_e, config: Config) => store.set(config))
   ipcMain.on('config:save-sync', (event, config: Config) => {
     store.set(config)

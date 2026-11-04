@@ -239,6 +239,18 @@ terminals from last time:
 
 Tick "always do this" to stop being asked; change it later in Settings (⌘,).
 
+Every terminal remembers the last command that ran in it, whether it came
+from the sidebar, was typed by hand or was sent by an agent through `mrt`.
+Restarting a terminal runs it again, and after you stop a project's commands
+its card offers a ▶ button that starts them all again.
+
+Each project also keeps its own copy of its terminals, layout, custom
+commands and presets in `.mrterminal/project.json` inside the project folder.
+Folders in it are relative, so you can check it in: on another machine,
+adding the folder brings the same terminals back. When present it wins over
+`~/.mrterminal/config.json` for that project. Add `.mrterminal/` to
+`.gitignore` if you'd rather keep it local.
+
 ## Appearance
 
 Settings (⌘,) has six themes (Midnight, Dracula, Nord, Solarized Dark,

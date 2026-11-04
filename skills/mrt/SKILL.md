@@ -1,6 +1,6 @@
 ---
 name: mrt
-description: Run and watch a project's long-running commands (dev servers, test watchers, workers, logs) in MrTerminal, the user's visual terminal workspace, with the `mrt` CLI. Use it to start or stop a server, run tests and read their output and exit code, check what is running, or type into a terminal the user is looking at, instead of running long-lived processes in your own shell.
+description: Run and watch a project's long-running commands (dev servers, test watchers, workers, logs) in MrTerminal, the user's visual terminal workspace, with the `mrt` CLI. When `mrt` is installed, always use it for any long-running command instead of your own shell or a background process, and reuse the terminals already open for the project (check `mrt ls` first) rather than opening new ones. Use it to start or stop a server, run tests and read their output and exit code, check what is running, or type into a terminal the user is looking at.
 ---
 
 # MrTerminal (`mrt`)
@@ -9,6 +9,24 @@ MrTerminal is a desktop app that keeps a project's terminals in one window:
 the dev server, the tests, the worker, side by side. `mrt` drives it. Every
 terminal you open or type into appears in the app, so the user can see
 what you do and step in. Nothing runs hidden in the background.
+
+## Rules (always follow these when `mrt` is installed)
+
+1. **Long-running commands go through MrTerminal, never your own shell.**
+   Dev servers, watchers, workers, `docker compose up`, `tail -f`: start
+   them with `mrt run`, not with `&`, `nohup`, a background job or your own
+   tool's background mode. The user should never have to remind you.
+2. **Reuse before you open.** Start every session in a project with
+   `mrt ls`. If a terminal for the command is already there, use it:
+   `mrt run <command>` and `mrt open -- <command>` pick it up on their own
+   (running: left alone; stopped: started again). Never pass `--new` unless
+   the user asked for a second copy.
+3. **Restart, don't recreate.** To start a stopped terminal again use
+   `mrt restart <terminal>`: it re-runs the terminal's command, or the last
+   command that ran in it (the `last:` in `mrt ls`), whether that came from
+   the sidebar, the user or an agent. Don't close it and open a new one.
+4. **Name the shells you open** (`mrt open --title agent`), so the next
+   session reuses that shell instead of opening another.
 
 Use it when:
 
@@ -59,12 +77,12 @@ Add `--json` to any command when you will parse the output.
 | `mrt projects` | Projects in the sidebar |
 | `mrt project add <folder> [--name N]` / `remove <p>` / `show <p>` | Manage projects |
 | `mrt scripts` | Detected scripts (with the names `run` accepts) and custom commands |
-| `mrt open [--cwd D] [--title T] [--split right\|below\|tab] [-- <command>]` | New terminal; a shell, or one running a command |
+| `mrt open [--cwd D] [--title T] [--split right\|below\|tab] [--new] [-- <command>]` | A terminal running a command, or a shell. Reuses the terminal already open for that command (or a shell where it last ran), and re-runs it if it had stopped; a titled shell reuses the shell of that title. `--new` opens another one |
 | `mrt run <script\|command> [--wait] [--timeout S] [--new] [--cwd D] [--title T]` | Run a script by name (`dev`, `web:dev`, a custom command's name) or any command line. Reuses the terminal already open for it, and re-runs it if it had stopped. `--new` opens another one |
 | `mrt send <terminal> <text> [--no-enter] [--wait]` | Type a line into a terminal and press Enter. With `--wait`, return that command's output and exit code |
 | `mrt keys <terminal> <key>...` | Press keys: `ctrl-c`, `ctrl-d`, `enter`, `tab`, `esc`, `up`, `down`, `left`, `right`, `pageup`... (text goes through `send`) |
 | `mrt stop <terminal>` | Ctrl-C |
-| `mrt restart <terminal>` | Start the terminal again and re-run its command |
+| `mrt restart <terminal>` | Start the terminal again and re-run its command, or the last command that ran in it |
 | `mrt close <terminal>` | Close the tab; whatever runs in it stops |
 | `mrt show <terminal>` | Bring it on screen for the user |
 | `mrt rename <terminal> <title>` | Rename the tab |
@@ -76,7 +94,7 @@ Add `--json` to any command when you will parse the output.
 | `mrt preset list` / `launch <name>` / `save <name>` / `delete <name>` | Presets: saved sets of terminals and their layout. `save` captures what is open now |
 | `mrt command add <name> <command> [--cwd D]` / `remove <name>` | The project's own commands in the sidebar; `run <name>` then works |
 | `mrt config path` / `show` / `schema` | The config file, its contents, its JSON Schema |
-| `mrt skill show` / `install [--dir D]` | This file. `install` writes it to `~/.agents/skills/mrt` and links it for Claude Code |
+| `mrt skill show` / `install [--dir D]` | This file. `install` writes it to `~/.agents/skills/mrt`, links it for Claude Code, and adds a short "use mrt, reuse terminals" section to `~/.claude/CLAUDE.md` / `~/.codex/AGENTS.md` |
 
 Exit codes: `0` ok, `1` error, `2` bad usage, `3` MrTerminal is not running
 (mrt starts it unless `--no-launch` is given), `124` timed out. With `--wait`,
@@ -85,7 +103,8 @@ mrt exits with the command's own exit code.
 ## Good habits
 
 - **Reuse before you open.** `mrt run dev` finds the dev server's terminal if
-  it is open. Check `mrt ls` before opening duplicates with `--new`.
+  it is open, also a shell where `npm run dev` was last run by hand. `mrt ls`
+  shows each shell's last command as `(shell, last: ...)`.
 - **Waits are bounded.** `--timeout` defaults to 60 seconds. On a timeout
   the command keeps running. Read it with `mrt read`, or wait again.
 - **Don't wait on servers to finish.** They don't. Wait with `--match` for
@@ -111,6 +130,13 @@ second of any change, so edits made there are lost. Change things through
 `mrt` (`project add`, `command add`, `preset save`, ...). Edit the JSON
 directly only while MrTerminal is closed. It is read and tidied at the next
 start, and any missing field gets its default.
+
+Each project also has its own `.mrterminal/project.json` in its folder:
+its terminals (with their last commands), layout, custom commands and
+presets, with folders relative to the project. The app keeps it in step with
+the global file; when present it wins at start and when the folder is added,
+so a checked-in copy brings the same terminals to another machine. The same
+rule applies: edit it only while MrTerminal is closed.
 
 A preset written by hand needs only terminals; a `null` layout tiles them:
 

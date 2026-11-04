@@ -58,6 +58,24 @@ for (const shell of [zsh, bash].filter((s): s is string => !!s)) {
   })
 }
 
+if (bash) {
+  describe(`${bash}: a repeated command on start`, () => {
+    it('is still reported, though the history leaves it out (ignoredups)', async () => {
+      writeFileSync(join(home, '.bash_profile'), "PS1='> '\nHISTCONTROL=ignoredups\nHISTFILE=~/.mrt_history\n")
+      writeFileSync(join(home, '.mrt_history'), 'sleep 3\n')
+      const statuses: { busy: boolean; command?: string }[] = []
+      const ptys = new PtyManager({ data: () => {}, exit: () => {}, status: (s) => statuses.push(s) }, () => bash)
+      try {
+        ptys.create({ id: 'r', cwd: home, cols: 80, rows: 24, command: 'sleep 3', run: true })
+        await new Promise((resolve) => setTimeout(resolve, 2500))
+        expect(statuses.find((s) => s.busy)).toMatchObject({ busy: true, command: 'sleep 3' })
+      } finally {
+        ptys.killAll()
+      }
+    }, 10000)
+  })
+}
+
 const windowsShells = process.platform === 'win32'
   ? ['powershell.exe', 'pwsh.exe'].filter((shell) =>
       (process.env.PATH ?? '').split(delimiter).some((dir) => existsSync(join(dir, shell))))

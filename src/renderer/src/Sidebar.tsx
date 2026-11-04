@@ -9,12 +9,15 @@ import {
   scriptTitle,
   selectProject,
   showTerminal,
+  resumeAll,
   stopAll,
+  stoppedTerminals,
   stopTerminal
 } from './actions'
 import { below, openMenu, type MenuEntry } from './ContextMenu'
 import { customCwd, renameCommand, withDock } from './dock'
 import { Icon } from './Icon'
+import { terminalForCommand } from './terminals'
 import { PresetDialog } from './PresetDialog'
 import {
   aliasKey,
@@ -23,6 +26,7 @@ import {
   moveProject,
   patchConfig,
   refreshScripts,
+  rerunCommand,
   setState,
   uid,
   useStore,
@@ -32,9 +36,13 @@ import {
 type Statuses = Record<string, TermStatus>
 type ScriptState = 'running' | 'open' | 'none'
 
-/** The open terminal that runs this command, if there is one. */
+/**
+ * The open terminal that runs this command, if there is one: opened for it,
+ * or a shell where it was last run by hand or by an agent.
+ */
 function terminalFor(project: Project, script: { command?: string; cwd: string }) {
-  return project.terminals.find((t) => t.command === script.command && t.cwd === script.cwd)
+  if (!script.command) return project.terminals.find((t) => !t.command && t.cwd === script.cwd)
+  return terminalForCommand(project.terminals, script.command, script.cwd)
 }
 
 function scriptState(project: Project, statuses: Statuses, script: { command?: string; cwd: string }): ScriptState {
@@ -509,7 +517,7 @@ function ProjectBody({ project, statuses }: { project: Project; statuses: Status
 /** The "..." menu of a project, also its right-click menu. */
 function projectMenu(
   project: Project,
-  { index, count, running, rename, toggle, refresh }: { index: number; count: number; running: number; rename: () => void; toggle: () => void; refresh: () => void }
+  { index, count, running, stopped, rename, toggle, refresh }: { index: number; count: number; running: number; stopped: number; rename: () => void; toggle: () => void; refresh: () => void }
 ): MenuEntry[] {
   return [
     { label: 'Rename…', action: rename, tooltip: 'Change the name shown here; the folder keeps its own' },
@@ -517,6 +525,7 @@ function projectMenu(
     { label: 'Re-read Scripts', action: refresh },
     { label: 'Open Folder', action: () => window.api.reveal(project.path) },
     ...(running > 0 ? [{ label: running === 1 ? 'Stop the Running Command' : `Stop All ${running} Running`, action: () => stopAll(project) }] : []),
+    ...(stopped > 0 ? [{ label: stopped === 1 ? 'Run the Stopped Command Again' : `Run All ${stopped} Stopped Again`, action: () => resumeAll(project) }] : []),
     null,
     { label: 'Move Up', action: () => moveProject(project.id, index - 1), disabled: index === 0 },
     { label: 'Move Down', action: () => moveProject(project.id, index + 1), disabled: index === count - 1 },
@@ -597,6 +606,8 @@ function ProjectNode({
   /** Where a dragged project would land relative to this one. */
   const [drop, setDrop] = useState<'before' | 'after' | null>(null)
   const running = project.terminals.filter((t) => statuses[t.id]?.shown).length
+  useStore((s) => s.ran)
+  const stopped = stoppedTerminals(project)
   const expanded = project.expanded
   const card = useRef<HTMLDivElement>(null)
 
@@ -614,7 +625,7 @@ function ProjectNode({
 
   const showMenu = (at: Parameters<typeof openMenu>[0]): void => {
     setMenu(true)
-    const items = projectMenu(project, { index, count, running, rename: () => setRenaming(true), toggle, refresh })
+    const items = projectMenu(project, { index, count, running, stopped: stopped.length, rename: () => setRenaming(true), toggle, refresh })
     openMenu(at, items, () => setMenu(false))
   }
 
@@ -708,6 +719,14 @@ function ProjectNode({
         )}
         <span className={menu ? 'project-actions project-actions-open' : 'project-actions'}>
           {running > 0 && <IconButton icon="stop" title={`Stop all ${running} running`} onClick={() => stopAll(project)} />}
+          {running === 0 && stopped.length > 0 && (
+            <IconButton
+              icon="play"
+              className="project-resume"
+              title={`Run again: ${stopped.map((t) => rerunCommand(t)).join(', ')}`}
+              onClick={() => resumeAll(project)}
+            />
+          )}
           <IconButton icon="refresh" className={refreshing ? 'spin' : ''} title="Re-read this project's scripts" onClick={refresh} />
           <IconButton icon="more" title="Project options" onClick={(event) => showMenu(below(event.currentTarget))} />
         </span>

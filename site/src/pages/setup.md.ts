@@ -83,7 +83,11 @@ mrt skill install
 \`\`\`
 
 This writes the skill to \`~/.agents/skills/mrt/SKILL.md\`, the folder agents
-share. For Claude Code it also links \`~/.claude/skills/mrt\` to that folder.
+share. For Claude Code it also links \`~/.claude/skills/mrt\` to that folder,
+and it adds a short, marked MrTerminal section to \`~/.claude/CLAUDE.md\` (and
+\`~/.codex/AGENTS.md\` for Codex) so every session uses \`mrt\` for long-running
+commands and reuses the terminals already open. Running it again updates that
+section in place.
 To keep the skill with one repository instead, run it there:
 \`mrt skill install --dir .agents/skills/mrt\`.
 
