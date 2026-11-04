@@ -44,6 +44,12 @@ export interface TerminalDef {
    * again (restart, the project's play button, the next launch) runs it.
    */
   last?: string
+  /**
+   * Where a plain shell was when `last` started. A line such as
+   * `cd api && npm start` leaves the shell in `api` once it stops, so it is
+   * run again from here rather than from wherever the shell is now.
+   */
+  lastCwd?: string
 }
 
 export interface CustomCommand {

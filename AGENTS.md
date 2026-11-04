@@ -105,7 +105,7 @@ site/           the website (Astro + Tailwind, its own package.json); published
   launch, in every project, typed by hand or not. It is also kept as
   `TerminalDef.last` after it stops: starting a plain shell again (restart,
   the project's play button, reopening a closed tab, the next launch) runs
-  `command ?? last` (`rerunCommand` in `store.ts`). Never
+  `command ?? last` (`rerunCommand` in `store.ts`). A plain shell runs it from `lastCwd`, where it started (a `cd x && ...` line leaves the shell in `x`). At launch, every project with a `resume` or `last` loads straight away, so those commands start without the project being shown. Never
   treat an open terminal as running: the UI promises that green means a
   command is executing. `shellIntegration.test.ts` runs real shells; set
   `MRT_TEST_ZSH` to test a zsh that is not in `/bin`.

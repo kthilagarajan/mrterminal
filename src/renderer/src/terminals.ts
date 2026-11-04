@@ -144,11 +144,11 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
   // Starting again runs the terminal's command, or else the last one that
   // ran in it, read afresh since `def` is the definition it opened with.
   // The first start picks up whatever was running when the app last quit.
-  const start = (
-    runCommand: boolean,
-    directory = def.command ? def.cwd : cwd,
-    command = rerunCommand(findTerminalDef(id) ?? def)
-  ): void => {
+  // A plain shell's remembered command runs from where it was started.
+  const start = (runCommand: boolean, folder?: string, command = rerunCommand(findTerminalDef(id) ?? def)): void => {
+    const now = findTerminalDef(id) ?? def
+    const remembered = !now.command && command && now.lastCwd && (command === now.last || command === now.resume)
+    const directory = folder ?? (def.command ? def.cwd : remembered ? now.lastCwd! : cwd)
     started = true
     exited = false
     cwd = directory

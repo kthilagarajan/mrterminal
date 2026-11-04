@@ -73,6 +73,10 @@
         "last": {
           "type": "string",
           "description": "The last command line that ran in the terminal long enough to show as running (typed by hand, from the sidebar or by an agent through mrt). Kept after it stops: restarting a terminal opened without `command`, the project's play button and the next launch run it again. Kept up to date by the app."
+        },
+        "lastCwd": {
+          "type": "string",
+          "description": "Folder (relative to the project, or absolute) a plain shell was in when `last` started; `last` runs again from there. Kept up to date by the app."
         }
       }
     },

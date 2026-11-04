@@ -287,7 +287,7 @@ function Running({ project, statuses }: { project: Project; statuses: Statuses }
               key={terminal.id}
               className="row script-running"
               role="button"
-              data-tooltip={`Running: ${terminal.command ?? statuses[terminal.id]?.process}\n${terminal.cwd}\n\nClick to show it`}
+              data-tooltip={`Running: ${terminal.command ?? statuses[terminal.id]?.command ?? statuses[terminal.id]?.process}\n${terminal.cwd}\n\nClick to show it`}
               onClick={() => showTerminal(project.id, terminal.id)}
               onContextMenu={(event) => {
                 event.preventDefault()
@@ -302,7 +302,7 @@ function Running({ project, statuses }: { project: Project; statuses: Statuses }
             >
               <RunButton running onRun={() => {}} onStop={() => stopTerminal(terminal.id)} />
               <span className="row-name">{terminal.title}</span>
-              <span className="row-detail">{terminal.command ?? statuses[terminal.id]?.process}</span>
+              <span className="row-detail">{terminal.command ?? statuses[terminal.id]?.command ?? statuses[terminal.id]?.process}</span>
             </div>
           ))}
         </div>
