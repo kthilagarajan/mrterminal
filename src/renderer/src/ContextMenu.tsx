@@ -20,6 +20,8 @@ export interface MenuState {
   items: MenuEntry[]
   /** Called when the menu closes, whichever way. */
   onClose?: () => void
+  /** As narrow as its items, with tighter rows: for short lists like the editor picker. */
+  compact?: boolean
 }
 
 /**
@@ -27,9 +29,9 @@ export interface MenuState {
  * that opened it. One menu at a time, shared by the sidebar and the tabs
  * (which are plain DOM inside dockview, outside React).
  */
-export function openMenu(at: Point, items: MenuEntry[], onClose?: () => void): void {
+export function openMenu(at: Point, items: MenuEntry[], onClose?: () => void, compact?: boolean): void {
   closeMenu()
-  setState({ menu: { ...at, items, onClose } })
+  setState({ menu: { ...at, items, onClose, compact } })
 }
 
 type Point = Pick<MenuState, 'x' | 'y' | 'alignRight'>
@@ -89,7 +91,7 @@ export function ContextMenu() {
   return (
     <div
       ref={ref}
-      className="menu"
+      className={menu.compact ? 'menu menu-compact' : 'menu'}
       role="menu"
       // Measured first, then placed; hidden for that one frame.
       style={position ? { left: position.left, top: position.top } : { left: menu.x, top: menu.y, visibility: 'hidden' }}

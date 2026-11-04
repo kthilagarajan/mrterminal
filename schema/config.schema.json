@@ -58,6 +58,11 @@
           "default": true,
           "description": "List what is running under each project in the sidebar."
         },
+        "editor": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Editor the top bar's Open button uses: cursor, vscode, vscode-insiders, windsurf, zed, sublime, webstorm, idea, pycharm, goland, rider, android-studio or fleet. null = the first one installed."
+        },
         "fontFamily": {
           "type": ["string", "null"],
           "default": null,

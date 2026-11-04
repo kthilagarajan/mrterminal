@@ -920,6 +920,16 @@ kbd {
   cursor: default;
 }
 
+.menu-compact {
+  min-width: 0;
+  padding: 3px;
+}
+
+.menu-compact .menu-item {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 .menu-danger {
   color: var(--red);
 }
@@ -1540,4 +1550,22 @@ kbd {
     opacity: 0;
     transform: translate(-50%, -6px);
   }
+}
+
+/* Top bar "Open in <editor>": the editor's button and the menu of the others. */
+.split-btn {
+  display: inline-flex;
+  flex: none;
+}
+
+.split-btn > .btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split-btn > .split-btn-more {
+  padding: 0 6px;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }

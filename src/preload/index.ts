@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   Config,
+  EditorInfo,
   MenuAction,
   Project,
   PtyCreateOptions,
@@ -33,6 +34,11 @@ const api = {
   /** Match the native window (background, title bar buttons) to the theme. */
   setChrome: (background: string, dark: boolean): void => ipcRenderer.send('chrome:set', background, dark),
   reveal: (path: string): void => ipcRenderer.send('shell:reveal', path),
+  editors: {
+    list: (): Promise<EditorInfo[]> => ipcRenderer.invoke('editors:list'),
+    open: (id: string, path: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('editors:open', id, path)
+  },
   pty: {
     create: (opts: PtyCreateOptions): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('pty:create', opts),
