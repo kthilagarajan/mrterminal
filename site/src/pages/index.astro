@@ -176,12 +176,9 @@ const features = [
       <h2 id="install" class="text-3xl font-semibold tracking-tight text-white">Install</h2>
       <p class="mt-4 text-muted">
         Download the <code class="text-text">.dmg</code> (<code class="text-text">arm64</code> for Apple silicon,
-        <code class="text-text">x64</code> for Intel) and drag MrTerminal to Applications. It isn't notarized by
-        Apple yet, so clear the download flag once:
+        <code class="text-text">x64</code> for Intel) and drag MrTerminal to Applications. It's signed and notarized by Apple, so it opens
+        right away.
       </p>
-      <div class="mx-auto mt-6 max-w-xl text-left">
-        <Term title="Terminal"><span class="text-run">$</span> xattr -cr /Applications/MrTerminal.app</Term>
-      </div>
       <p class="mt-6 text-sm text-faint">Windows: download the x64 .exe installer. Linux: choose the x64 AppImage or .deb. macOS updates itself; Windows and Linux updates open the release page.</p>
     </section>
   </main>

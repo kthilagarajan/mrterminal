@@ -27,10 +27,15 @@ mac:
     - from: resources/bin
       to: bin
   artifactName: ${productName}-${version}-${arch}.${ext}
-  # No Apple Developer certificate yet: sign ad hoc so the app runs on Apple
-  # silicon. The hardened runtime would then refuse to load node-pty.
-  identity: '-'
-  hardenedRuntime: false
+  # Signed with the Developer ID Application certificate (CSC_LINK in CI, or
+  # the login keychain locally) and notarized when APPLE_API_KEY,
+  # APPLE_API_KEY_ID and APPLE_API_ISSUER are set. Builds without the
+  # certificate (pull requests) override this to an ad hoc signature; see
+  # .github/workflows/release.yml.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
 linux:
   target:
     - target: AppImage

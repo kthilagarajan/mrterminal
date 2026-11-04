@@ -79,12 +79,8 @@ per-command exit codes.
 Download the `.dmg` from the [Releases](../../releases) page (`arm64` for Apple
 silicon, `x64` for Intel) and drag MrTerminal to Applications.
 
-The app is not notarized by Apple yet, so macOS blocks the first launch. Clear
-the download flag once and it opens normally:
-
-```sh
-xattr -cr /Applications/MrTerminal.app
-```
+The macOS app is signed with a Developer ID certificate and notarized by Apple,
+so it opens normally on first launch.
 
 ### Updates
 

@@ -44,7 +44,6 @@ url=$(curl -fsSL https://api.github.com/repos/kthilagarajan/mrterminal/releases/
   | grep -o "https://[^\\"]*/MrTerminal-[^\\"]*-$arch\\.zip" | head -1)
 curl -fL "$url" -o /tmp/MrTerminal.zip
 ditto -x -k /tmp/MrTerminal.zip /Applications
-xattr -cr /Applications/MrTerminal.app   # not notarized by Apple yet
 \`\`\`
 
 The user can also download it themselves from
