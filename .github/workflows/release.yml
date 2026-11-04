@@ -87,6 +87,10 @@ jobs:
         run: xvfb-run -a node scripts/smoke-packaged.cjs dist/linux-unpacked/mrterminal
       - name: Smoke test packaged macOS app
         if: matrix.platform == 'mac'
+        # The runner's login shell is bash 3.2, which can't report exit codes;
+        # zsh is the macOS default.
+        env:
+          SHELL: /bin/zsh
         run: node scripts/smoke-packaged.cjs dist/mac-arm64/MrTerminal.app/Contents/MacOS/MrTerminal
       - name: Smoke test packaged Windows app
         if: matrix.platform == 'win'
