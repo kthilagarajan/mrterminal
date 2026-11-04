@@ -21,6 +21,7 @@ export const icons = {
   undo: svg('<path d="M5.5 3L2.5 6l3 3"/><path d="M2.5 6h6.5a4 4 0 0 1 0 8H6"/>'),
   chevron: svg('<path d="M6 4l4 4-4 4"/>', 12),
   chevronDown: svg('<path d="M4 6l4 4 4-4"/>', 12),
+  chevronUp: svg('<path d="M4 10l4-4 4 4"/>', 12),
   code: svg('<path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5"/>'),
   compact: svg('<path d="M3 4.5h10M3 8h10M3 11.5h10"/>'),
   sidebar: svg('<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3v10"/>'),

@@ -215,6 +215,12 @@ export type MenuAction =
   | 'settings'
   | 'reopen-closed'
   | 'check-updates'
+  | 'next-tab'
+  | 'previous-tab'
+  | 'find'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'zoom-reset'
 
 /** Hues that stay readable on both dark and light themes. */
 export const PROJECT_COLORS = [

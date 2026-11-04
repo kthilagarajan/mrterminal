@@ -6,6 +6,7 @@ import type { TerminalDef } from '@shared/types'
 import { findTerminalDef, getState, rerunCommand, setShellCwd, setStatus } from './store'
 import { findReusable, type LiveTerminal } from './reuse'
 import { cwdFromOsc7 } from './terminalCwd'
+import { createFindBar } from './findBar'
 
 /**
  * A live terminal: an xterm.js view plus the shell process behind it in the
@@ -23,6 +24,8 @@ export interface Runtime {
   focus(): void
   /** Re-measure after something other than the panel size changed. */
   refit(): void
+  /** Open the find bar over this terminal. */
+  find(): void
   dispose(): void
 }
 
@@ -123,6 +126,7 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
 
   const el = document.createElement('div')
   el.className = 'term'
+  const findBar = createFindBar(term, el)
 
   let opened = false
   let started = false
@@ -216,6 +220,7 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
     term,
     el,
     refit: layout,
+    find: () => findBar.open(),
     focus() {
       if (performance.now() < holdFocusUntil) return
       wantsFocus = !opened
@@ -232,6 +237,7 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       window.clearTimeout(startHidden)
       cancelAnimationFrame(frame)
       window.api.pty.kill(id)
+      findBar.dispose()
       term.dispose()
       el.remove()
     }

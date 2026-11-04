@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { displayKeys, keysFor, SHORTCUT_GROUPS } from '@shared/shortcuts'
+import { alsoKeysFor, displayKeys, keysFor, SHORTCUT_GROUPS } from '@shared/shortcuts'
 import { THEMES } from '@shared/themes'
 import type { Config, GlobalCommand, RestoreMode, Settings } from '@shared/types'
 import { applyAppearance } from './appearance'
@@ -321,12 +321,19 @@ export function SettingsDialog({ config }: { config: Config }) {
               {SHORTCUT_GROUPS.map((group) => (
                 <div key={group.title} className="shortcut-group">
                   <div className="shortcut-title">{group.title}</div>
-                  {group.items.map(([id, label]) => (
-                    <div key={id} className="shortcut">
-                      <span>{label}</span>
-                      <kbd>{displayKeys(keysFor(id, window.api.platform), window.api.platform)}</kbd>
-                    </div>
-                  ))}
+                  {group.items.map(([id, label]) => {
+                    const platform = window.api.platform
+                    const also = alsoKeysFor(id, platform)
+                    return (
+                      <div key={id} className="shortcut">
+                        <span>{label}</span>
+                        <span className="shortcut-keys">
+                          <kbd>{displayKeys(keysFor(id, platform), platform)}</kbd>
+                          {also && <kbd>{displayKeys(also, platform)}</kbd>}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               ))}
             </div>
