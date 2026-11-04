@@ -19,27 +19,67 @@ interface EditorDef {
   commands: string[]
   /** Windows: executables under %LOCALAPPDATA%\Programs. */
   windows?: string[]
+  /**
+   * The editor's flag for "open in a new window". Without it, editors that
+   * keep one instance (the VS Code family, Zed, Sublime) put the folder in
+   * whatever window is already open.
+   */
+  newWindow?: string
+  /**
+   * macOS: the command-line launcher inside the .app, which takes `newWindow`.
+   * `open -a` cannot pass it to an app that is already running.
+   */
+  macCli?: string[]
 }
 
+const VSCODE_CLI = (name: string): string => `Contents/Resources/app/bin/${name}`
+
 const EDITORS: EditorDef[] = [
-  { id: 'cursor', name: 'Cursor', apps: ['Cursor'], commands: ['cursor'], windows: ['cursor\\Cursor.exe'] },
+  {
+    id: 'cursor',
+    name: 'Cursor',
+    apps: ['Cursor'],
+    commands: ['cursor'],
+    windows: ['cursor\\Cursor.exe'],
+    newWindow: '--new-window',
+    macCli: [VSCODE_CLI('cursor')]
+  },
   {
     id: 'vscode',
     name: 'VS Code',
     apps: ['Visual Studio Code'],
     commands: ['code'],
-    windows: ['Microsoft VS Code\\Code.exe']
+    windows: ['Microsoft VS Code\\Code.exe'],
+    newWindow: '--new-window',
+    macCli: [VSCODE_CLI('code')]
   },
   {
     id: 'vscode-insiders',
     name: 'VS Code Insiders',
     apps: ['Visual Studio Code - Insiders'],
     commands: ['code-insiders'],
-    windows: ['Microsoft VS Code Insiders\\Code - Insiders.exe']
+    windows: ['Microsoft VS Code Insiders\\Code - Insiders.exe'],
+    newWindow: '--new-window',
+    macCli: [VSCODE_CLI('code-insiders'), VSCODE_CLI('code')]
   },
-  { id: 'windsurf', name: 'Windsurf', apps: ['Windsurf'], commands: ['windsurf'], windows: ['Windsurf\\Windsurf.exe'] },
-  { id: 'zed', name: 'Zed', apps: ['Zed'], commands: ['zed', 'zeditor'] },
-  { id: 'sublime', name: 'Sublime Text', apps: ['Sublime Text'], commands: ['subl'] },
+  {
+    id: 'windsurf',
+    name: 'Windsurf',
+    apps: ['Windsurf'],
+    commands: ['windsurf'],
+    windows: ['Windsurf\\Windsurf.exe'],
+    newWindow: '--new-window',
+    macCli: [VSCODE_CLI('windsurf')]
+  },
+  { id: 'zed', name: 'Zed', apps: ['Zed'], commands: ['zed', 'zeditor'], newWindow: '--new', macCli: ['Contents/MacOS/cli'] },
+  {
+    id: 'sublime',
+    name: 'Sublime Text',
+    apps: ['Sublime Text'],
+    commands: ['subl'],
+    newWindow: '--new-window',
+    macCli: ['Contents/SharedSupport/bin/subl']
+  },
   { id: 'webstorm', name: 'WebStorm', apps: ['WebStorm'], commands: ['webstorm'] },
   { id: 'idea', name: 'IntelliJ IDEA', apps: ['IntelliJ IDEA', 'IntelliJ IDEA Ultimate', 'IntelliJ IDEA CE'], commands: ['idea'] },
   { id: 'pycharm', name: 'PyCharm', apps: ['PyCharm', 'PyCharm Professional Edition', 'PyCharm CE'], commands: ['pycharm'] },
@@ -49,8 +89,8 @@ const EDITORS: EditorDef[] = [
   { id: 'fleet', name: 'Fleet', apps: ['Fleet'], commands: ['fleet'] }
 ]
 
-/** How to start one editor: a macOS app, or a program to run with the folder. */
-type Launch = { kind: 'app'; app: string } | { kind: 'exec'; file: string }
+/** How to start one editor: a macOS app, or a program to run with `args` and then the folder. */
+type Launch = { kind: 'app'; app: string } | { kind: 'exec'; file: string; args: string[] }
 
 interface Env {
   platform: NodeJS.Platform
@@ -61,11 +101,17 @@ interface Env {
 }
 
 function findLaunch(editor: EditorDef, env: Env): Launch | null {
+  const args = editor.newWindow ? [editor.newWindow] : []
   if (env.platform === 'darwin') {
     for (const dir of ['/Applications', posix.join(env.home, 'Applications')]) {
       for (const app of editor.apps) {
         const path = posix.join(dir, `${app}.app`)
-        if (env.exists(path)) return { kind: 'app', app: path }
+        if (!env.exists(path)) continue
+        for (const cli of editor.macCli ?? []) {
+          const file = posix.join(path, cli)
+          if (env.exists(file)) return { kind: 'exec', file, args }
+        }
+        return { kind: 'app', app: path }
       }
     }
     return null
@@ -76,14 +122,14 @@ function findLaunch(editor: EditorDef, env: Env): Launch | null {
     for (const dir of dirs) {
       for (const suffix of suffixes) {
         const file = env.platform === 'win32' ? `${dir.replace(/\\$/, '')}\\${command}${suffix}` : posix.join(dir, command)
-        if (env.exists(file)) return { kind: 'exec', file }
+        if (env.exists(file)) return { kind: 'exec', file, args }
       }
     }
   }
   if (env.platform === 'win32' && env.localAppData) {
     for (const exe of editor.windows ?? []) {
       const file = `${env.localAppData}\\Programs\\${exe}`
-      if (env.exists(file)) return { kind: 'exec', file }
+      if (env.exists(file)) return { kind: 'exec', file, args }
     }
   }
   return null
@@ -124,8 +170,8 @@ export function openInEditor(id: string, folder: string): Promise<{ ok: true } |
         ? spawn('open', ['-a', launch.app, folder], { detached: true, stdio: 'ignore' })
         : // .cmd and .bat launchers only run through cmd.exe.
           /\.(cmd|bat)$/i.test(launch.file)
-          ? spawn(`"${launch.file}"`, [`"${folder}"`], { detached: true, stdio: 'ignore', shell: true, windowsHide: true })
-          : spawn(launch.file, [folder], { detached: true, stdio: 'ignore', windowsHide: true })
+          ? spawn(`"${launch.file}"`, [...launch.args, `"${folder}"`], { detached: true, stdio: 'ignore', shell: true, windowsHide: true })
+          : spawn(launch.file, [...launch.args, folder], { detached: true, stdio: 'ignore', windowsHide: true })
     child.once('error', (err) => resolve({ ok: false, error: err.message }))
     child.once('spawn', () => {
       child.unref()

@@ -161,7 +161,7 @@ its scripts from disk, and a menu to move it up or down, open its folder or
 remove it. Drag a project to reorder; a blue line shows where it will land.
 
 **Open in your editor.** Beside *+ Terminal* in the top bar, a button opens the
-project's folder in your editor. Its arrow lists every editor MrTerminal finds
+project's folder in a new window of your editor. Its arrow lists every editor MrTerminal finds
 on the machine (Cursor, VS Code, Windsurf, Zed, Sublime Text, the JetBrains
 IDEs, Fleet); the one you pick becomes the button's default.
 
