@@ -16,6 +16,14 @@ export interface Settings {
   theme: string
   /** List what is running under each project in the sidebar. */
   showRunning: boolean
+  /** Id of the editor the top bar's "Open in" button uses. null = the first one found. */
+  editor: string | null
+}
+
+/** An editor or IDE found on this machine that can open a project folder. */
+export interface EditorInfo {
+  id: string
+  name: string
 }
 
 export interface TerminalDef {
@@ -29,6 +37,13 @@ export interface TerminalDef {
    * not. It runs again when the app restarts, in place of `command`.
    */
   resume?: string
+  /**
+   * The last command line that ran in it long enough to show as running,
+   * whoever typed it (the sidebar, the user, an agent through `mrt`). Unlike
+   * `resume` it is kept after the command stops, so starting the terminal
+   * again (restart, the project's play button, the next launch) runs it.
+   */
+  last?: string
 }
 
 export interface CustomCommand {
@@ -226,7 +241,8 @@ export const DEFAULT_SETTINGS: Settings = {
   fontSize: 13,
   fontFamily: null,
   theme: 'midnight',
-  showRunning: true
+  showRunning: true,
+  editor: null
 }
 
 export function defaultConfig(): Config {

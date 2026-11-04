@@ -1,10 +1,11 @@
 import type { Terminal } from '@xterm/xterm'
-import type { AppState, TermInfo } from '@shared/control'
+import type { AppState, OpenAction, TermInfo } from '@shared/control'
 import type { DetectedScript, Project, ScriptGroup, TerminalDef } from '@shared/types'
 import { removeProjectNow, scriptTitle } from './actions'
 import { customCwd, folderName, getDock, findDock, renameCommand, withDock, type Placement, type ProjectDock } from './dock'
-import { addProject, aliasKey, editProject, getProject, getState, patchConfig, refreshScripts, uid } from './store'
-import { getRuntime, holdFocus } from './terminals'
+import { addProjectFolder, aliasKey, editProject, getProject, getState, patchConfig, refreshScripts, uid } from './store'
+import { findReusable } from './reuse'
+import { getRuntime, holdFocus, liveTerminal } from './terminals'
 
 /**
  * Answers `mrt` (forwarded by main). Everything goes through the same
@@ -61,11 +62,33 @@ function termInfo(p: Project, t: TerminalDef): TermInfo {
     title: t.title,
     cwd: getRuntime(t.id)?.cwd ?? t.cwd,
     command: t.command,
+    last: t.command ? undefined : t.last,
     running: status?.busy ?? false,
     process: status?.process ?? '',
     active: getDock(p.id)?.activeId === t.id,
     shellExitCode: status?.exitCode
   }
+}
+
+/** An open terminal of the project that should serve this request, if any (see `findReusable`). */
+function reusable(p: Project, want: { command?: string; cwd: string; title?: string }, self: unknown): TerminalDef | undefined {
+  return findReusable(p.terminals, want, liveTerminal, typeof self === 'string' ? self : undefined)
+}
+
+/**
+ * Bring a reused terminal on screen and make sure its command runs: left
+ * alone if it is running, started again (running its command, or the last
+ * one that ran in it) if it stopped or its shell exited.
+ */
+function useExisting(dock: ProjectDock, p: Project, t: TerminalDef, rerun: boolean): { terminal: TermInfo; action: OpenAction } {
+  dock.reveal(t.id)
+  const status = getState().statuses[t.id]
+  if (status?.busy) return { terminal: termInfo(p, t), action: 'already-running' }
+  if (rerun || status?.exitCode !== undefined || !getRuntime(t.id)) {
+    getRuntime(t.id)?.restart(undefined, false)
+    return { terminal: termInfo(p, t), action: rerun ? 'restarted' : 'reused' }
+  }
+  return { terminal: termInfo(p, t), action: 'reused' }
 }
 
 function infoFor(projectId: string, terminalId: string): TermInfo {
@@ -140,7 +163,7 @@ const handlers: Record<string, (p: Params) => unknown> = {
   state: () => appState(),
 
   async 'project.add'({ path, name }) {
-    const id = addProject(String(path), String(name))
+    const id = await addProjectFolder(String(path), String(name))
     void refreshScripts(id)
     await dockFor(id)
     return id
@@ -148,21 +171,28 @@ const handlers: Record<string, (p: Params) => unknown> = {
   'project.remove': ({ projectId }) => removeProjectNow(project(projectId)),
   'project.select': ({ projectId }) => reveal(project(projectId).id),
 
-  async open({ projectId, cwd, title, command, placement }) {
+  async open({ projectId, cwd, title, command, placement, new: forceNew, self }) {
     const p = project(projectId)
     await reveal(p.id)
     const dir = String(cwd)
     const cmd = typeof command === 'string' ? command : undefined
-    const def = (await dockFor(p.id)).open(
-      { title: typeof title === 'string' ? title : (cmd ?? folderName(dir)), cwd: dir, command: cmd },
+    const name = typeof title === 'string' ? title : undefined
+    const dock = await dockFor(p.id)
+    const existing = forceNew ? undefined : reusable(p, { command: cmd, cwd: dir, title: name }, self)
+    if (existing) {
+      const { terminal, action } = useExisting(dock, p, existing, !!cmd)
+      return { ...terminal, action }
+    }
+    const def = dock.open(
+      { title: name ?? cmd ?? folderName(dir), cwd: dir, command: cmd },
       (placement as Placement) ?? 'auto',
       undefined,
       false
     )
-    return infoFor(p.id, def.id)
+    return { ...infoFor(p.id, def.id), action: 'started' }
   },
 
-  async run({ projectId, target, cwd, title, new: forceNew }) {
+  async run({ projectId, target, cwd, title, new: forceNew, self }) {
     const p = project(projectId)
     const found = await findRunnable(p, String(target))
     const command = found?.script.command ?? String(target)
@@ -170,14 +200,10 @@ const handlers: Record<string, (p: Params) => unknown> = {
     await reveal(p.id)
     const dock = await dockFor(p.id)
 
-    // Like the sidebar: a command that already has a terminal reuses it.
-    const existing = forceNew ? undefined : p.terminals.find((t) => t.command === command && t.cwd === dir)
-    if (existing) {
-      dock.reveal(existing.id)
-      if (getState().statuses[existing.id]?.busy) return { terminal: termInfo(p, existing), action: 'already-running' }
-      getRuntime(existing.id)?.restart(undefined, false)
-      return { terminal: termInfo(p, existing), action: 'restarted' }
-    }
+    // Like the sidebar: a command that already has a terminal reuses it, and
+    // so does a shell where it was last run.
+    const existing = forceNew ? undefined : reusable(p, { command, cwd: dir }, self)
+    if (existing) return useExisting(dock, p, existing, true)
     const alias = p.aliases[aliasKey(p, command, dir)]
     const name =
       (typeof title === 'string' ? title : undefined) ?? alias ?? (found ? scriptTitle(found.group, found.script) : command)

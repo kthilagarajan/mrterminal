@@ -4,6 +4,7 @@ import { applyRestore, boot, handleKey, handleMenu, pickProject, reopenClosed } 
 import { ContextMenu } from './ContextMenu'
 import { getDock, ProjectDock } from './dock'
 import { Icon } from './Icon'
+import { OpenInButton } from './OpenInButton'
 import { RestorePrompt } from './RestorePrompt'
 import { SettingsDialog } from './SettingsDialog'
 import { Sidebar } from './Sidebar'
@@ -130,6 +131,7 @@ export function App() {
               </button>
               <span className="spacer" />
               <UpdateButton />
+              <OpenInButton path={active.path} />
               <TerminalButton projectId={active.id} />
             </>
           )}

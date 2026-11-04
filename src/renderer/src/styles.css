@@ -658,6 +658,12 @@ kbd {
   display: flex;
 }
 
+/* Runs the project's stopped commands again; green like every "start". */
+.icon-btn.project-resume,
+.icon-btn.project-resume:hover:not(:disabled) {
+  color: var(--green);
+}
+
 /* Folded / unfolded marker, at the right so names keep the full width. */
 .project-fold {
   width: 24px;
@@ -912,6 +918,16 @@ kbd {
 .menu-item:disabled {
   color: var(--faint);
   cursor: default;
+}
+
+.menu-compact {
+  min-width: 0;
+  padding: 3px;
+}
+
+.menu-compact .menu-item {
+  padding: 4px 8px;
+  font-size: 12px;
 }
 
 .menu-danger {
@@ -1536,7 +1552,8 @@ kbd {
   }
 }
 
-/* Top bar "+ Terminal ▾": the button and the arrow for global commands. */
+/* Top bar split buttons: "Open in <editor>" with its menu of the others, and
+   "+ Terminal ▾" with the arrow for global commands. */
 .split-btn {
   display: inline-flex;
   flex: none;

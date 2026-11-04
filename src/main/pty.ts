@@ -49,6 +49,8 @@ interface Session {
   prompted: boolean
   /** A command is about to be typed on start and has not been seen starting yet. */
   starting: boolean
+  /** That command, for shells that start it without saying what it is. */
+  startCommand?: string
   /** Pending "type the command once the prompt is up" timers. */
   timers: NodeJS.Timeout[]
 }
@@ -150,6 +152,7 @@ export class PtyManager {
       sawBusy: false,
       prompted: false,
       starting: !!(opts.command && opts.run && cwdOk),
+      startCommand: opts.run ? opts.command : undefined,
       timers: []
     }
     this.sessions.set(opts.id, session)
@@ -345,7 +348,10 @@ export class PtyManager {
       session.integrated = true
       const open = session.commands.at(-1)
       if (mark.kind === 'A') session.prompted = true
-      session.line = mark.kind === 'C' ? mark.commandLine : undefined
+      // bash reads the line from its history, which leaves out a repeat of the
+      // newest entry (HISTCONTROL=ignoredups): the line typed on start is
+      // often just that, but it is known anyway.
+      session.line = mark.kind === 'C' ? (mark.commandLine ?? (session.starting ? session.startCommand : undefined)) : undefined
       if (mark.kind === 'C') {
         session.starting = false
         if (open && open.end === undefined) open.end = start

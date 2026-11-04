@@ -12,6 +12,9 @@ import {
   type Project,
   type WindowBounds
 } from '@shared/types'
+import { randomUUID } from 'node:crypto'
+import { withFreshIds } from '@shared/ids'
+import { applyProjectFile, readProjectFile, serializeProjectFile, writeProjectFiles } from './projectFile'
 
 /** `~/.mrterminal`, overridable so tests and dev runs don't touch real state. */
 export const configDir = process.env.MRTERMINAL_HOME || join(homedir(), '.mrterminal')
@@ -38,6 +41,7 @@ function normalizeProject(raw: Partial<Project>): Project | null {
           // Plain shells used to be titled "shell"; they are named after their folder now.
           .map((t) => (!t.command && t.title === 'shell' ? { ...t, title: basename(t.cwd) || t.title } : t))
           .map(({ resume, ...t }) => (typeof resume === 'string' && resume ? { ...t, resume } : t))
+          .map(({ last, ...t }) => (typeof last === 'string' && last ? { ...t, last } : t))
       : [],
     layout: raw.layout ?? null,
     expanded: raw.expanded !== false,
@@ -93,9 +97,29 @@ export function normalizeConfig(raw: unknown, seed: () => GlobalCommand[] = defa
 export class ConfigStore {
   private config: Config
   private timer: NodeJS.Timeout | null = null
+  /** What each project's own file holds, so unchanged ones are not rewritten. */
+  private written = new Map<string, string>()
 
   constructor() {
-    this.config = this.read()
+    this.config = this.withProjectFiles(this.read())
+  }
+
+  /** A project's own `.mrterminal/project.json`, where there is one, wins. */
+  private withProjectFiles(config: Config): Config {
+    const taken = new Set(config.projects.flatMap((p) => p.terminals.map((t) => t.id)))
+    const projects = config.projects.map((project) => {
+      const found = readProjectFile(project.path)
+      if (!found) return project
+      // Ids this project already had are its own; only clashes with others get new ones.
+      const own = new Set(project.terminals.map((t) => t.id))
+      const others = new Set([...taken].filter((id) => !own.has(id)))
+      const file = withFreshIds(found, others, () => randomUUID().slice(0, 8))
+      const merged = applyProjectFile(project, file)
+      for (const t of merged.terminals) taken.add(t.id)
+      this.written.set(project.path, serializeProjectFile(merged))
+      return merged
+    })
+    return normalizeConfig({ ...config, projects })
   }
 
   private read(): Config {
@@ -153,5 +177,6 @@ export class ConfigStore {
     } catch (err) {
       console.error('mrterminal: could not write config:', err)
     }
+    writeProjectFiles(this.config.projects, this.written)
   }
 }

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { withFreshIds } from '@shared/ids'
 import type { MenuState } from './ContextMenu'
 import { nextProjectColor, type Config, type Project, type ScriptGroup, type Settings, type TerminalDef, type UpdateState } from '@shared/types'
 
@@ -44,6 +45,12 @@ export interface State {
   opened: string[]
   /** The open right-click / "..." menu. */
   menu: MenuState | null
+  /**
+   * Terminals whose command has been shown running this session. Once
+   * stopped, their project offers to run them all again; a project that
+   * has only just been opened has nothing to run again yet.
+   */
+  ran: string[]
 }
 
 let state: State = {
@@ -58,7 +65,8 @@ let state: State = {
   closedCount: 0,
   quitArmed: false,
   opened: [],
-  menu: null
+  menu: null,
+  ran: []
 }
 
 const listeners = new Set<() => void>()
@@ -107,6 +115,23 @@ export function aliasKey(project: Project, command: string, cwd: string): string
   return `${folder}\n${command}`
 }
 
+/** A terminal's definition as it is now (a runtime holds the one it started with). */
+export function findTerminalDef(id: string): TerminalDef | undefined {
+  for (const p of state.config?.projects ?? []) {
+    const def = p.terminals.find((t) => t.id === id)
+    if (def) return def
+  }
+  return undefined
+}
+
+/**
+ * What starting a terminal again runs: the command it was opened for, else
+ * the last command that ran in it (typed by hand, or sent by an agent).
+ */
+export function rerunCommand(def: TerminalDef): string | undefined {
+  return def.command ?? def.last
+}
+
 export function getProject(id: string): Project | undefined {
   return state.config?.projects.find((p) => p.id === id)
 }
@@ -128,6 +153,22 @@ export function addProject(path: string, name: string): string {
   const project: Project = { id: uid(), name, path, terminals: [], layout: null, customCommands: [], presets: [], aliases: {}, expanded: true, color: nextProjectColor((state.config?.projects ?? []).map((p) => p.color)) }
   editConfig((c) => ({ ...c, projects: [...c.projects, project], activeProjectId: project.id }))
   return project.id
+}
+
+/**
+ * Add a project folder, bringing back the terminals, commands and presets
+ * its own `.mrterminal/project.json` keeps (checked in, or left by this app
+ * on another machine).
+ */
+export async function addProjectFolder(path: string, name: string): Promise<string> {
+  const known = state.config?.projects.find((p) => p.path === path)
+  if (known) return addProject(path, name)
+  const found = await window.api.config.projectFile(path).catch(() => null)
+  const taken = new Set((state.config?.projects ?? []).flatMap((p) => p.terminals.map((t) => t.id)))
+  const file = found && withFreshIds(found, taken, uid)
+  const id = addProject(path, name)
+  if (file) editProject(id, (p) => ({ ...p, ...file }))
+  return id
 }
 
 export function removeProject(id: string): void {
@@ -180,19 +221,23 @@ export function setShellCwd(id: string, cwd: string): void {
 
 /**
  * Remember the command line running in a terminal, so it runs again when the
- * app restarts, whether it came from the sidebar or was typed by hand.
+ * app restarts, whether it came from the sidebar, an agent or was typed by
+ * hand. `last` keeps it after it stops, for starting the terminal again.
  */
 function setResume(id: string, command: string | undefined): void {
   const project = state.config?.projects.find((p) => p.terminals.some((t) => t.id === id))
   const def = project?.terminals.find((t) => t.id === id)
-  if (!project || !def || def.resume === command) return
-  const update = ({ resume: _old, ...t }: TerminalDef): TerminalDef => (command ? { ...t, resume: command } : t)
+  if (!project || !def) return
+  if (command && !state.ran.includes(id)) setState({ ran: [...state.ran, id] })
+  if (def.resume === command && (!command || def.last === command)) return
+  const update = ({ resume: _old, ...t }: TerminalDef): TerminalDef => (command ? { ...t, resume: command, last: command } : t)
   editProject(project.id, (p) => ({ ...p, terminals: p.terminals.map((t) => (t.id === id ? update(t) : t)) }))
 }
 
 export function removeTerminalDef(projectId: string, id: string): void {
   editProject(projectId, (p) => ({ ...p, terminals: p.terminals.filter((t) => t.id !== id) }))
   cancelShow(id)
+  if (state.ran.includes(id)) setState({ ran: state.ran.filter((x) => x !== id) })
   if (id in state.statuses) {
     const { [id]: _gone, ...statuses } = state.statuses
     setState({ statuses })

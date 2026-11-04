@@ -1,8 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   Config,
+  EditorInfo,
   GlobalCommand,
   MenuAction,
+  Project,
   PtyCreateOptions,
   PtyExit,
   PtyStatus,
@@ -24,13 +26,20 @@ const api = {
   config: {
     load: (): Promise<Config> => ipcRenderer.invoke('config:load'),
     save: (config: Config): void => ipcRenderer.send('config:save', config),
-    saveSync: (config: Config): void => void ipcRenderer.sendSync('config:save-sync', config)
+    saveSync: (config: Config): void => void ipcRenderer.sendSync('config:save-sync', config),
+    /** What a project folder's own `.mrterminal/project.json` says, if it has one. */
+    projectFile: (path: string): Promise<Partial<Project> | null> => ipcRenderer.invoke('project:file', path)
   },
   pickFolder: (): Promise<{ path: string; name: string } | null> => ipcRenderer.invoke('dialog:pick-folder'),
   detectScripts: (path: string): Promise<ScriptGroup[]> => ipcRenderer.invoke('scripts:detect', path),
   /** Match the native window (background, title bar buttons) to the theme. */
   setChrome: (background: string, dark: boolean): void => ipcRenderer.send('chrome:set', background, dark),
   reveal: (path: string): void => ipcRenderer.send('shell:reveal', path),
+  editors: {
+    list: (): Promise<EditorInfo[]> => ipcRenderer.invoke('editors:list'),
+    open: (id: string, path: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('editors:open', id, path)
+  },
   programs: {
     /** Where each command line's program is installed; null where it is not found. */
     find: (commands: string[]): Promise<(string | null)[]> => ipcRenderer.invoke('programs:find', commands),

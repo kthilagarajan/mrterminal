@@ -5,11 +5,13 @@ import type { Config, MenuAction, PtyCreateOptions } from '@shared/types'
 import { keysFor, type ShortcutId } from '@shared/shortcuts'
 import { getTheme } from '@shared/themes'
 import type { Server } from 'node:net'
+import { readProjectFile } from './projectFile'
 import { ConfigStore, socketPath } from './config'
 import { createControl, serveControl } from './control'
 import { installCli } from './cliInstall'
 import { PtyManager } from './pty'
 import { detectScripts } from './scripts'
+import { listEditors, openInEditor } from './editors'
 import { currentEnv, detectAgents, findProgram } from './programs'
 import { Updater } from './updater'
 
@@ -199,6 +201,7 @@ function buildMenu(): void {
 
 function registerIpc(): void {
   ipcMain.handle('config:load', () => store.get())
+  ipcMain.handle('project:file', (_e, path: string) => readProjectFile(path))
   ipcMain.on('config:save', (_e, config: Config) => store.set(config))
   ipcMain.on('config:save-sync', (event, config: Config) => {
     store.set(config)
@@ -222,6 +225,8 @@ function registerIpc(): void {
     if (win && !win.isDestroyed() && /^#[0-9a-f]{6}$/i.test(background)) win.setBackgroundColor(background)
   })
   ipcMain.on('shell:reveal', (_e, path: string) => void shell.openPath(path))
+  ipcMain.handle('editors:list', () => listEditors())
+  ipcMain.handle('editors:open', (_e, id: string, path: string) => openInEditor(id, path))
   ipcMain.handle('programs:find', (_e, commands: string[]) => {
     const env = currentEnv()
     return commands.map((command) => findProgram(command, env))

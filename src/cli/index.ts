@@ -10,6 +10,7 @@ import skill from '../../skills/mrt/SKILL.md?raw'
 import { configPath } from '../main/config'
 import { call, ensureApp, NotRunning } from './client'
 import { COMMANDS, GLOBAL_HELP, helpText } from './commands'
+import { withRules } from './rules'
 
 class Usage extends Error {}
 
@@ -78,7 +79,7 @@ function terminals(list: TermInfo[]): string {
   if (list.length === 0) return 'No terminals are open.'
   return table([
     ['ID', 'PROJECT', 'STATE', 'TITLE', 'COMMAND'],
-    ...list.map((t) => [t.id, t.project, state(t), t.title, t.command ?? '(shell)'])
+    ...list.map((t) => [t.id, t.project, state(t), t.title, t.command ?? (t.last ? `(shell, last: ${t.last})` : '(shell)')])
   ])
 }
 
@@ -101,15 +102,43 @@ function commandResult(result: (CommandResult & { timedOut?: boolean }) | undefi
  */
 const AGENT_SKILL_DIRS = [{ agent: 'Claude Code', home: join(homedir(), '.claude') }]
 
+/**
+ * Agents' always-loaded instruction files. A skill is only read when the
+ * agent decides it fits; these few lines are read every session, so the
+ * agent uses MrTerminal and reuses its terminals without being told.
+ */
+const AGENT_RULE_FILES = [
+  { agent: 'Claude Code', home: join(homedir(), '.claude'), file: 'CLAUDE.md' },
+  { agent: 'Codex', home: join(homedir(), '.codex'), file: 'AGENTS.md' }
+]
+
+function installRules(): { agent: string; path: string }[] {
+  const written: { agent: string; path: string }[] = []
+  for (const { agent, home, file } of AGENT_RULE_FILES) {
+    if (!existsSync(home)) continue
+    const path = join(home, file)
+    const before = existsSync(path) ? readFileSync(path, 'utf8') : ''
+    const after = withRules(before)
+    if (after !== before) writeFileSync(path, after)
+    written.push({ agent, path })
+  }
+  return written
+}
+
 /** Write the skill to ~/.agents/skills/mrt (or `dir`) and link it where agents look. */
-function installSkill(dir: string | undefined): { path: string; linked: { agent: string; path: string }[]; skipped: string[] } {
+function installSkill(dir: string | undefined): {
+  path: string
+  linked: { agent: string; path: string }[]
+  skipped: string[]
+  rules: { agent: string; path: string }[]
+} {
   const target = resolve(dir ?? join(homedir(), '.agents', 'skills', 'mrt'))
   const file = join(target, 'SKILL.md')
   mkdirSync(target, { recursive: true })
   writeFileSync(file, skill)
   const linked: { agent: string; path: string }[] = []
   const skipped: string[] = []
-  if (dir) return { path: file, linked, skipped }
+  if (dir) return { path: file, linked, skipped, rules: [] }
 
   for (const { agent, home } of AGENT_SKILL_DIRS) {
     if (!existsSync(home)) continue
@@ -136,7 +165,7 @@ function installSkill(dir: string | undefined): { path: string; linked: { agent:
     symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir')
     linked.push({ agent, path: link })
   }
-  return { path: file, linked, skipped }
+  return { path: file, linked, skipped, rules: installRules() }
 }
 
 /** Each command prints its result and returns mrt's exit code. */
@@ -231,8 +260,14 @@ async function run(): Promise<number> {
     }
 
     case 'open': {
-      const t = await app<TermInfo>('open', { cwd: opts.cwd, title: opts.title, split: opts.split, command: rest || undefined })
-      return print(t, () => `Opened ${t.title} in ${t.project} (${t.id}).`)
+      const t = await app<TermInfo>('open', { cwd: opts.cwd, title: opts.title, split: opts.split, command: rest || undefined, new: opts.new })
+      const verb = {
+        started: 'Opened',
+        restarted: 'Reused and restarted',
+        'already-running': 'Already running:',
+        reused: 'Reused'
+      }[t.action ?? 'started']
+      return print(t, () => `${verb} ${t.title} in ${t.project} (${t.id}).`)
     }
 
     case 'run': {
@@ -370,7 +405,8 @@ async function run(): Promise<number> {
           [
             `Installed the mrt skill: ${r.path}`,
             ...r.linked.map((l) => `Linked for ${l.agent}: ${l.path}`),
-            ...r.skipped.map((l) => `Left alone (not ours): ${l}`)
+            ...r.skipped.map((l) => `Left alone (not ours): ${l}`),
+            ...r.rules.map((l) => `Told ${l.agent} to use MrTerminal and reuse its terminals: ${l.path}`)
           ].join('\n')
         )
       }

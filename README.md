@@ -164,6 +164,11 @@ Hovering a project shows its buttons: stop everything running in it, re-read
 its scripts from disk, and a menu to move it up or down, open its folder or
 remove it. Drag a project to reorder; a blue line shows where it will land.
 
+**Open in your editor.** Beside *+ Terminal* in the top bar, a button opens the
+project's folder in your editor. Its arrow lists every editor MrTerminal finds
+on the machine (Cursor, VS Code, Windsurf, Zed, Sublime Text, the JetBrains
+IDEs, Fleet); the one you pick becomes the button's default.
+
 **Running** means a command is executing in that terminal right now. A
 terminal waiting at its prompt is not running, whatever opened it. The count
 beside a project, the green dots and the *Running* list at the top of its card
@@ -247,6 +252,18 @@ terminals from last time:
 - **Start fresh**.
 
 Tick "always do this" to stop being asked; change it later in Settings (⌘,).
+
+Every terminal remembers the last command that ran in it, whether it came
+from the sidebar, was typed by hand or was sent by an agent through `mrt`.
+Restarting a terminal runs it again, and after you stop a project's commands
+its card offers a ▶ button that starts them all again.
+
+Each project also keeps its own copy of its terminals, layout, custom
+commands and presets in `.mrterminal/project.json` inside the project folder.
+Folders in it are relative, so you can check it in: on another machine,
+adding the folder brings the same terminals back. When present it wins over
+`~/.mrterminal/config.json` for that project. Add `.mrterminal/` to
+`.gitignore` if you'd rather keep it local.
 
 ## Appearance
 
