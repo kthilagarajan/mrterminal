@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   Config,
   EditorInfo,
+  GlobalCommand,
   MenuAction,
   Project,
   PtyCreateOptions,
@@ -38,6 +39,12 @@ const api = {
     list: (): Promise<EditorInfo[]> => ipcRenderer.invoke('editors:list'),
     open: (id: string, path: string): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('editors:open', id, path)
+  },
+  programs: {
+    /** Where each command line's program is installed; null where it is not found. */
+    find: (commands: string[]): Promise<(string | null)[]> => ipcRenderer.invoke('programs:find', commands),
+    /** The built-in agents, pointed at where they are installed on this machine. */
+    agents: (): Promise<GlobalCommand[]> => ipcRenderer.invoke('programs:agents')
   },
   pty: {
     create: (opts: PtyCreateOptions): Promise<{ ok: true } | { ok: false; error: string }> =>

@@ -54,6 +54,33 @@ export interface CustomCommand {
   cwd?: string
 }
 
+/**
+ * A command offered in every project from the top bar's terminal menu, such
+ * as a coding agent. It opens a terminal in the project's folder and runs.
+ */
+export interface GlobalCommand {
+  id: string
+  name: string
+  /** The command line: a program (name or full path) and any arguments. */
+  command: string
+  /** Kept in Settings but left out of the menu. */
+  hidden?: boolean
+}
+
+/** Agents offered out of the box. The id doubles as the program looked for. */
+export const BUILTIN_AGENTS: { id: string; name: string; program: string }[] = [
+  { id: 'claude', name: 'Claude Code', program: 'claude' },
+  { id: 'codex', name: 'Codex', program: 'codex' },
+  // Not `agent`: Grok's installer puts a program of that name in ~/.local/bin too.
+  { id: 'cursor', name: 'Cursor Agent', program: 'cursor-agent' },
+  { id: 'antigravity', name: 'Antigravity', program: 'agy' },
+  { id: 'grok', name: 'Grok', program: 'grok' }
+]
+
+export function defaultGlobalCommands(): GlobalCommand[] {
+  return BUILTIN_AGENTS.map(({ id, name, program }) => ({ id, name, command: program }))
+}
+
 /** A set of terminals, with their arrangement, that opens in one click. */
 export interface Preset {
   id: string
@@ -101,6 +128,8 @@ export interface Config {
   sidebarHidden: boolean
   /** Project cards show only their name: no path, a smaller tile. */
   sidebarCompact: boolean
+  /** Commands such as coding agents, offered in every project. */
+  globalCommands: GlobalCommand[]
   window?: WindowBounds
 }
 
@@ -224,6 +253,7 @@ export function defaultConfig(): Config {
     activeProjectId: null,
     sidebarWidth: 280,
     sidebarHidden: false,
-    sidebarCompact: false
+    sidebarCompact: false,
+    globalCommands: defaultGlobalCommands()
   }
 }

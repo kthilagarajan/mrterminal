@@ -12,6 +12,7 @@ import { installCli } from './cliInstall'
 import { PtyManager } from './pty'
 import { detectScripts } from './scripts'
 import { listEditors, openInEditor } from './editors'
+import { currentEnv, detectAgents, findProgram } from './programs'
 import { Updater } from './updater'
 
 const isMac = process.platform === 'darwin'
@@ -226,6 +227,11 @@ function registerIpc(): void {
   ipcMain.on('shell:reveal', (_e, path: string) => void shell.openPath(path))
   ipcMain.handle('editors:list', () => listEditors())
   ipcMain.handle('editors:open', (_e, id: string, path: string) => openInEditor(id, path))
+  ipcMain.handle('programs:find', (_e, commands: string[]) => {
+    const env = currentEnv()
+    return commands.map((command) => findProgram(command, env))
+  })
+  ipcMain.handle('programs:agents', () => detectAgents(currentEnv()))
 
   ipcMain.handle('pty:create', (_e, opts: PtyCreateOptions) => ptys.create(opts))
   ipcMain.on('pty:write', (_e, id: string, data: string) => ptys.write(id, data))

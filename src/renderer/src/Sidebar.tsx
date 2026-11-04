@@ -792,7 +792,7 @@ export function Sidebar({ config }: { config: Config }) {
         ))}
         {config.projects.length === 0 && <p className="empty">No projects yet. Press + to add a folder.</p>}
       </div>
-      <button className="sidebar-foot" data-tooltip="Open settings for appearance, shells, and session restore" onClick={() => setState({ settingsOpen: true })}>
+      <button className="sidebar-foot" data-tooltip="Open settings for appearance, shells, and session restore" onClick={() => setState({ settingsOpen: true, settingsTab: 'general' })}>
         <Icon name="gear" /> Settings
       </button>
       <div className="sidebar-resize" data-tooltip="Drag to resize the sidebar" onMouseDown={(e) => startResize(e, config.sidebarWidth)} />

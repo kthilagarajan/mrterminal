@@ -24,7 +24,8 @@ export const icons = {
   code: svg('<path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5"/>'),
   compact: svg('<path d="M3 4.5h10M3 8h10M3 11.5h10"/>'),
   sidebar: svg('<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3v10"/>'),
-  terminal: svg('<path d="M3 5l3 3-3 3M8 11h5"/>')
+  terminal: svg('<path d="M3 5l3 3-3 3M8 11h5"/>'),
+  trash: svg('<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>')
 }
 
 export type IconName = keyof typeof icons

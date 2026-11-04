@@ -1,11 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
+import { currentEnv, detectAgents } from './programs'
 import {
   DEFAULT_SETTINGS,
   defaultConfig,
+  defaultGlobalCommands,
   nextProjectColor,
   type Config,
+  type GlobalCommand,
   type Project,
   type WindowBounds
 } from '@shared/types'
@@ -53,10 +56,19 @@ function normalizeProject(raw: Partial<Project>): Project | null {
   }
 }
 
-/** Fill in anything missing so a hand-edited or older file still loads. */
-export function normalizeConfig(raw: unknown): Config {
+function normalizeGlobalCommand(raw: Partial<GlobalCommand>): GlobalCommand | null {
+  if (!raw || typeof raw.id !== 'string' || typeof raw.command !== 'string') return null
+  const command: GlobalCommand = { id: raw.id, name: typeof raw.name === 'string' ? raw.name : raw.command, command: raw.command }
+  return raw.hidden === true ? { ...command, hidden: true } : command
+}
+
+/**
+ * Fill in anything missing so a hand-edited or older file still loads.
+ * @param seed the global commands for a file that has none yet
+ */
+export function normalizeConfig(raw: unknown, seed: () => GlobalCommand[] = defaultGlobalCommands): Config {
   const base = defaultConfig()
-  if (!raw || typeof raw !== 'object') return base
+  if (!raw || typeof raw !== 'object') return { ...base, globalCommands: seed() }
   const r = raw as Partial<Config>
   const projects = Array.isArray(r.projects)
     ? r.projects.map(normalizeProject).filter((p): p is Project => p !== null)
@@ -75,6 +87,9 @@ export function normalizeConfig(raw: unknown): Config {
     sidebarWidth: typeof r.sidebarWidth === 'number' ? r.sidebarWidth : base.sidebarWidth,
     sidebarHidden: r.sidebarHidden === true,
     sidebarCompact: r.sidebarCompact === true,
+    globalCommands: Array.isArray(r.globalCommands)
+      ? r.globalCommands.map(normalizeGlobalCommand).filter((c): c is GlobalCommand => c !== null)
+      : seed(),
     window: r.window
   }
 }
@@ -108,9 +123,11 @@ export class ConfigStore {
   }
 
   private read(): Config {
-    if (!existsSync(configPath)) return defaultConfig()
+    // First run, or a file from before global commands: offer the agents installed here.
+    const seed = (): GlobalCommand[] => detectAgents(currentEnv())
+    if (!existsSync(configPath)) return normalizeConfig(null, seed)
     try {
-      const config = normalizeConfig(JSON.parse(readFileSync(configPath, 'utf8')))
+      const config = normalizeConfig(JSON.parse(readFileSync(configPath, 'utf8')), seed)
       // A project whose folder is gone (deleted, renamed) has nothing to run.
       const projects = config.projects.filter((p) => existsSync(p.path))
       if (projects.length === config.projects.length) return config
@@ -123,7 +140,7 @@ export class ConfigStore {
         /* nothing more we can do */
       }
       console.error('mrterminal: could not read config, starting fresh:', err)
-      return defaultConfig()
+      return normalizeConfig(null, seed)
     }
   }
 

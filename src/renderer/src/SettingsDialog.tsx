@@ -1,17 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { displayKeys, keysFor, SHORTCUT_GROUPS } from '@shared/shortcuts'
 import { THEMES } from '@shared/themes'
-import type { RestoreMode, Settings } from '@shared/types'
+import type { Config, GlobalCommand, RestoreMode, Settings } from '@shared/types'
 import { applyAppearance } from './appearance'
-import { patchConfig, patchSettings, setState, useStore } from './store'
+import { Icon } from './Icon'
+import { getState, patchConfig, patchSettings, setState, uid, useStore, type SettingsTab } from './store'
 
-const TABS = [
+const TABS: [SettingsTab, string][] = [
   ['general', 'General'],
   ['appearance', 'Appearance'],
+  ['commands', 'Global commands'],
   ['shortcuts', 'Shortcuts']
-] as const
-
-type Tab = (typeof TABS)[number][0]
+]
 
 const RESTORE_OPTIONS: [RestoreMode, string][] = [
   ['ask', 'Ask every time'],
@@ -38,10 +38,125 @@ const FONT_SUGGESTIONS = [
   'Hack Nerd Font'
 ]
 
-export function SettingsDialog({ settings, compact }: { settings: Settings; compact: boolean }) {
+function setGlobalCommands(edit: (commands: GlobalCommand[]) => GlobalCommand[]): void {
+  patchConfig({ globalCommands: edit(getState().config?.globalCommands ?? []) })
+}
+
+/**
+ * The commands in the "+ Terminal ▾" menu. Each is a name and a command line;
+ * the program it starts is looked up so a typo or a missing install shows.
+ */
+function GlobalCommands({ commands }: { commands: GlobalCommand[] }) {
+  const [found, setFound] = useState<Record<string, string | null>>({})
+  const lines = commands.map((c) => c.command)
+  const key = lines.join('\n')
+
+  useEffect(() => {
+    let live = true
+    const timer = window.setTimeout(() => {
+      void window.api.programs.find(lines).then((paths) => {
+        if (live) setFound(Object.fromEntries(lines.map((line, i) => [line, paths[i]])))
+      })
+    }, 250)
+    return () => {
+      live = false
+      window.clearTimeout(timer)
+    }
+  }, [key])
+
+  const edit = (id: string, patch: Partial<GlobalCommand>): void =>
+    setGlobalCommands((list) => list.map((c) => (c.id === id ? { ...c, ...patch } : c)))
+
+  // Built-in agents that were removed come back; ones not found before but
+  // installed since are pointed at their program and shown.
+  const findAgents = async (): Promise<void> => {
+    const detected = await window.api.programs.agents()
+    const paths = await window.api.programs.find(getState().config?.globalCommands.map((c) => c.command) ?? [])
+    setGlobalCommands((list) => {
+      const next = list.map((c, i) => {
+        const agent = detected.find((d) => d.id === c.id)
+        return agent && !agent.hidden && !paths[i] ? { ...c, command: agent.command, hidden: undefined } : c
+      })
+      return [...next, ...detected.filter((d) => !list.some((c) => c.id === d.id))]
+    })
+  }
+
+  return (
+    <>
+      <p className="muted small commands-intro">
+        Start these from the arrow next to <b>+ Terminal</b> in any project. Each one opens a new terminal in the
+        project's folder, or runs in the terminal on screen.
+      </p>
+      <div className="commands">
+        {commands.map((c) => {
+          const path = c.command.trim() ? found[c.command] : undefined
+          return (
+            <div key={c.id} className={c.hidden ? 'command-row command-hidden' : 'command-row'}>
+              <input
+                type="checkbox"
+                className="command-show"
+                checked={!c.hidden}
+                data-tooltip={c.hidden ? 'Show it in the menu' : 'Hide it from the menu'}
+                aria-label={`Show ${c.name} in the menu`}
+                onChange={(e) => edit(c.id, { hidden: e.target.checked ? undefined : true })}
+              />
+              <input
+                type="text"
+                className="command-name"
+                placeholder="Name"
+                aria-label="Name"
+                value={c.name}
+                onChange={(e) => edit(c.id, { name: e.target.value })}
+              />
+              <div className="command-line">
+                <input
+                  type="text"
+                  spellCheck={false}
+                  placeholder="Program or path, and any arguments"
+                  aria-label="Command"
+                  value={c.command}
+                  onChange={(e) => edit(c.id, { command: e.target.value })}
+                />
+                {path !== undefined && (
+                  <small className={path ? 'command-path' : 'command-path command-missing'} data-tooltip={path ?? undefined}>
+                    {path ? path.replace(window.api.home, '~') : 'Not found on this computer'}
+                  </small>
+                )}
+              </div>
+              <button
+                className="icon-btn"
+                data-tooltip="Remove this command"
+                aria-label={`Remove ${c.name}`}
+                onClick={() => setGlobalCommands((list) => list.filter((x) => x.id !== c.id))}
+              >
+                <Icon name="trash" />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+      <div className="commands-actions">
+        <button
+          className="btn"
+          data-tooltip="Add a command of your own, such as an agent with its flags"
+          onClick={() => setGlobalCommands((list) => [...list, { id: uid(), name: '', command: '' }])}
+        >
+          <Icon name="plus" /> Add command
+        </button>
+        <button className="btn" data-tooltip="Look for Claude Code, Codex, Cursor, Antigravity and Grok again" onClick={() => void findAgents()}>
+          Find installed agents
+        </button>
+      </div>
+    </>
+  )
+}
+
+export function SettingsDialog({ config }: { config: Config }) {
+  const { settings, sidebarCompact: compact } = config
   const close = (): void => setState({ settingsOpen: false })
   const update = useStore((s) => s.update)
-  const [tab, setTab] = useState<Tab>('general')
+  const tab = useStore((s) => s.settingsTab)
+  const setTab = (settingsTab: SettingsTab): void => setState({ settingsTab })
   const appearance = (patch: Partial<Settings>): void => {
     patchSettings(patch)
     applyAppearance({ ...settings, ...patch })
@@ -198,6 +313,8 @@ export function SettingsDialog({ settings, compact }: { settings: Settings; comp
               </p>
             </>
           )}
+
+          {tab === 'commands' && <GlobalCommands commands={config.globalCommands} />}
 
           {tab === 'shortcuts' && (
             <div className="shortcuts">
