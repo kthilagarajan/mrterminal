@@ -7,6 +7,7 @@ import { Icon } from './Icon'
 import { RestorePrompt } from './RestorePrompt'
 import { SettingsDialog } from './SettingsDialog'
 import { Sidebar } from './Sidebar'
+import { TerminalButton } from './TerminalButton'
 import { UpdateButton } from './UpdateButton'
 import { getState, patchConfig, refreshScripts, setState, useStore } from './store'
 
@@ -129,9 +130,7 @@ export function App() {
               </button>
               <span className="spacer" />
               <UpdateButton />
-              <button className="btn" data-tooltip="Open a new terminal in this project's folder" onClick={() => getDock(active.id)?.openShell('auto')}>
-                <Icon name="plus" /> Terminal
-              </button>
+              <TerminalButton projectId={active.id} />
             </>
           )}
         </header>
@@ -144,7 +143,7 @@ export function App() {
           {config.projects.length === 0 && <Welcome />}
         </div>
       </main>
-      {settingsOpen && <SettingsDialog settings={config.settings} compact={config.sidebarCompact} />}
+      {settingsOpen && <SettingsDialog config={config} />}
       <ContextMenu />
       {quitBanner}
     </div>

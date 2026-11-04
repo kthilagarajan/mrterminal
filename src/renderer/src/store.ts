@@ -2,6 +2,8 @@ import { useSyncExternalStore } from 'react'
 import type { MenuState } from './ContextMenu'
 import { nextProjectColor, type Config, type Project, type ScriptGroup, type Settings, type TerminalDef, type UpdateState } from '@shared/types'
 
+export type SettingsTab = 'general' | 'appearance' | 'commands' | 'shortcuts'
+
 export interface TermStatus {
   /** A command is executing right now. */
   busy: boolean
@@ -27,6 +29,8 @@ export interface State {
   statuses: Record<string, TermStatus>
   scripts: Record<string, ScriptGroup[] | undefined>
   settingsOpen: boolean
+  /** The Settings tab to show when it opens. */
+  settingsTab: SettingsTab
   update: UpdateState | null
   /** How many closed tabs/projects can still be reopened. */
   closedCount: number
@@ -49,6 +53,7 @@ let state: State = {
   statuses: {},
   scripts: {},
   settingsOpen: false,
+  settingsTab: 'general',
   update: null,
   closedCount: 0,
   quitArmed: false,

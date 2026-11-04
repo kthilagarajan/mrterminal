@@ -10,6 +10,7 @@ import { createControl, serveControl } from './control'
 import { installCli } from './cliInstall'
 import { PtyManager } from './pty'
 import { detectScripts } from './scripts'
+import { currentEnv, detectAgents, findProgram } from './programs'
 import { Updater } from './updater'
 
 const isMac = process.platform === 'darwin'
@@ -221,6 +222,11 @@ function registerIpc(): void {
     if (win && !win.isDestroyed() && /^#[0-9a-f]{6}$/i.test(background)) win.setBackgroundColor(background)
   })
   ipcMain.on('shell:reveal', (_e, path: string) => void shell.openPath(path))
+  ipcMain.handle('programs:find', (_e, commands: string[]) => {
+    const env = currentEnv()
+    return commands.map((command) => findProgram(command, env))
+  })
+  ipcMain.handle('programs:agents', () => detectAgents(currentEnv()))
 
   ipcMain.handle('pty:create', (_e, opts: PtyCreateOptions) => ptys.create(opts))
   ipcMain.on('pty:write', (_e, id: string, data: string) => ptys.write(id, data))

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { getState, setState, useStore } from './store'
 
 export interface MenuItem {
@@ -7,6 +7,8 @@ export interface MenuItem {
   disabled?: boolean
   danger?: boolean
   tooltip?: string
+  /** A second, smaller choice at the end of the row, e.g. where to run it. */
+  aside?: { label: string; action: () => void; tooltip?: string; disabled?: boolean }
 }
 
 /** `null` draws a separator. */
@@ -20,6 +22,8 @@ export interface MenuState {
   items: MenuEntry[]
   /** Called when the menu closes, whichever way. */
   onClose?: () => void
+  /** As narrow as its items, with tighter rows: for short lists like the editor picker. */
+  compact?: boolean
 }
 
 /**
@@ -27,9 +31,9 @@ export interface MenuState {
  * that opened it. One menu at a time, shared by the sidebar and the tabs
  * (which are plain DOM inside dockview, outside React).
  */
-export function openMenu(at: Point, items: MenuEntry[], onClose?: () => void): void {
+export function openMenu(at: Point, items: MenuEntry[], onClose?: () => void, compact?: boolean): void {
   closeMenu()
-  setState({ menu: { ...at, items, onClose } })
+  setState({ menu: { ...at, items, onClose, compact } })
 }
 
 type Point = Pick<MenuState, 'x' | 'y' | 'alignRight'>
@@ -89,32 +93,47 @@ export function ContextMenu() {
   return (
     <div
       ref={ref}
-      className="menu"
+      className={menu.compact ? 'menu menu-compact' : 'menu'}
       role="menu"
       // Measured first, then placed; hidden for that one frame.
       style={position ? { left: position.left, top: position.top } : { left: menu.x, top: menu.y, visibility: 'hidden' }}
       onContextMenu={(event) => event.preventDefault()}
     >
-      {menu.items.map((item, i) =>
-        item ? (
+      {menu.items.map((item, i) => {
+        if (!item) return <div key={i} className="menu-sep" />
+        const run = (action: () => void) => (event: ReactMouseEvent): void => {
+          event.stopPropagation()
+          closeMenu()
+          action()
+        }
+        const button = (
           <button
             key={i}
             role="menuitem"
             className={item.danger ? 'menu-item menu-danger' : 'menu-item'}
             data-tooltip={item.tooltip}
             disabled={item.disabled}
-            onClick={(event) => {
-              event.stopPropagation()
-              closeMenu()
-              item.action()
-            }}
+            onClick={run(item.action)}
           >
             {item.label}
           </button>
-        ) : (
-          <div key={i} className="menu-sep" />
         )
-      )}
+        if (!item.aside) return button
+        return (
+          <div key={i} className="menu-row">
+            {button}
+            <button
+              role="menuitem"
+              className="menu-aside"
+              data-tooltip={item.aside.tooltip}
+              disabled={item.aside.disabled}
+              onClick={run(item.aside.action)}
+            >
+              {item.aside.label}
+            </button>
+          </div>
+        )
+      })}
     </div>
   )
 }

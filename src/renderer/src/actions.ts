@@ -1,4 +1,4 @@
-import type { Config, DetectedScript, MenuAction, Project, RestoreMode, ScriptGroup } from '@shared/types'
+import type { Config, DetectedScript, GlobalCommand, MenuAction, Project, RestoreMode, ScriptGroup } from '@shared/types'
 import { applyAppearance } from './appearance'
 import { rememberClosed, takeClosed } from './closed'
 import { findDock, getDock, withDock, type ProjectDock } from './dock'
@@ -12,7 +12,8 @@ import {
   refreshScripts,
   removeProject,
   restoreProject,
-  setState
+  setState,
+  type SettingsTab
 } from './store'
 import { disposeRuntime, getRuntime, setCleanExitHandler } from './terminals'
 
@@ -174,6 +175,34 @@ function runIn(dock: ProjectDock, project: Project, group: ScriptGroup | null, s
   dock.open({ title: alias ?? scriptTitle(group, script), command: script.command, cwd: script.cwd })
 }
 
+/** The terminal a global command can be typed into: the one on screen, if it is at a prompt. */
+export function idleActiveTerminal(projectId: string): string | undefined {
+  const id = getDock(projectId)?.activeId
+  return id && !getState().statuses[id]?.busy ? id : undefined
+}
+
+/**
+ * Run a global command (an agent, say) in the project's folder: in a new
+ * terminal, or typed into the one on screen when it is at a prompt.
+ */
+export function runGlobalCommand(projectId: string, command: GlobalCommand, where: 'new' | 'current'): void {
+  const project = getProject(projectId)
+  if (!project) return
+  withDock(projectId, (dock) => {
+    const current = where === 'current' ? idleActiveTerminal(projectId) : undefined
+    if (current) {
+      window.api.pty.write(current, `${command.command}\r`)
+      dock.focus(current)
+      return
+    }
+    dock.open({ title: command.name, command: command.command, cwd: project.path })
+  })
+}
+
+export function openSettings(tab: SettingsTab = 'general'): void {
+  setState({ settingsOpen: true, settingsTab: tab })
+}
+
 /** The nth (from 1) of a list; 9 means the last, as in browsers. */
 function nth<T>(list: T[], n: number): T | undefined {
   return n === 9 ? list.at(-1) : list[n - 1]
@@ -228,9 +257,9 @@ export function handleMenu(action: MenuAction): void {
     case 'reopen-closed':
       return reopenClosed()
     case 'settings':
-      return setState({ settingsOpen: true })
+      return openSettings()
     case 'check-updates':
-      setState({ settingsOpen: true })
+      openSettings()
       return void window.api.update.check()
   }
 }

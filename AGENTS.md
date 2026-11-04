@@ -39,6 +39,7 @@ src/main/       Electron main process (Node)
   shellIntegration.ts  startup files that make zsh/bash emit OSC 133 marks
   scripts.ts      detectScripts(): package.json, pyproject.toml, Makefile, ...
   config.ts       ConfigStore: load, normalise, atomic write
+  programs.ts     finds where a command's program is installed; seeds the built-in agents
   updater.ts      over-the-air updates from GitHub releases
   control.ts      the socket `mrt` talks to; answers or forwards to the renderer
   cliInstall.ts   "Install 'mrt' Command…": links the launcher onto the PATH
@@ -56,6 +57,7 @@ src/renderer/   React UI
   closed.ts       stack of closed tabs/projects behind "reopen closed"
   appearance.ts   applies theme and font everywhere
   Sidebar.tsx     project cards: running strip, presets, scripts, commands
+  TerminalButton.tsx  "+ Terminal ▾": the menu of global commands (agents)
   control.ts      carries out mrt requests with the same functions clicks use
 schema/         config.schema.json: JSON Schema of ~/.mrterminal/config.json
 skills/mrt/     SKILL.md: teaches coding agents to use mrt (bundled into the CLI;

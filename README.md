@@ -207,6 +207,15 @@ the command, and optionally give it a name and a folder to run in (relative to
 the project, or absolute). They are saved per project, run like any other
 script, and can be edited or deleted from the row.
 
+**Agents and other global commands.** The arrow next to **+ Terminal** lists
+commands offered in every project: Claude Code (`claude`), Codex (`codex`),
+Cursor (`cursor-agent`), Antigravity (`agy`) and Grok (`grok`), each found
+where it is installed on first launch. Click one to open a new terminal in the
+project's folder running it, or press **current** to type it into the terminal
+on screen. **Global commands…** at the bottom opens Settings, where each
+command's name and program (a path, plus any flags) can be changed, hidden
+from the menu, or removed, and your own commands added.
+
 **Terminals** (right). Drag a tab onto the edge of any pane to split that way,
 or onto another tab bar to stack it as a tab. Each pane also has buttons for
 new tab, split right, split down and maximize. Double-click a tab title to

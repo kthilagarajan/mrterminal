@@ -25,6 +25,11 @@
       "default": false,
       "description": "Project cards show only their name, without the folder path."
     },
+    "globalCommands": {
+      "type": "array",
+      "description": "Commands offered in every project from the arrow next to + Terminal, such as coding agents. Seeded with the agents found on first launch (claude, codex, cursor-agent, agy, grok).",
+      "items": { "$ref": "#/$defs/GlobalCommand" }
+    },
     "window": {
       "type": "object",
       "description": "Window position and size; written by the app.",
@@ -103,6 +108,17 @@
         },
         "expanded": { "type": "boolean", "default": true, "description": "The project's card is unfolded in the sidebar." },
         "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "The project's colour; assigned automatically when missing." }
+      }
+    },
+    "GlobalCommand": {
+      "type": "object",
+      "description": "A command run in a new terminal in the project's folder, or typed into the terminal on screen.",
+      "required": ["id", "name", "command"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique among global commands. Built-in agents use claude, codex, cursor, antigravity, grok." },
+        "name": { "type": "string", "description": "Shown in the menu and as the tab title." },
+        "command": { "type": "string", "description": "The command line: a program name or full path, and any arguments, e.g. \"claude --resume\"." },
+        "hidden": { "type": "boolean", "default": false, "description": "Kept in Settings but left out of the menu." }
       }
     },
     "Terminal": {

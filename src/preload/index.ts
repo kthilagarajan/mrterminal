@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   Config,
+  GlobalCommand,
   MenuAction,
   PtyCreateOptions,
   PtyExit,
@@ -30,6 +31,12 @@ const api = {
   /** Match the native window (background, title bar buttons) to the theme. */
   setChrome: (background: string, dark: boolean): void => ipcRenderer.send('chrome:set', background, dark),
   reveal: (path: string): void => ipcRenderer.send('shell:reveal', path),
+  programs: {
+    /** Where each command line's program is installed; null where it is not found. */
+    find: (commands: string[]): Promise<(string | null)[]> => ipcRenderer.invoke('programs:find', commands),
+    /** The built-in agents, pointed at where they are installed on this machine. */
+    agents: (): Promise<GlobalCommand[]> => ipcRenderer.invoke('programs:agents')
+  },
   pty: {
     create: (opts: PtyCreateOptions): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('pty:create', opts),
