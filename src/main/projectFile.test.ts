@@ -25,7 +25,7 @@ function project(path: string, extra: Partial<Project> = {}): Project {
     path,
     terminals: [
       { id: 'a', title: 'dev', cwd: path, command: 'npm run dev', resume: 'npm run dev' },
-      { id: 'b', title: 'web', cwd: join(path, 'web'), last: 'make watch' },
+      { id: 'b', title: 'web', cwd: join(path, 'web'), last: 'make watch', lastCwd: path },
       { id: 'c', title: 'logs', cwd: outside }
     ],
     layout: { grid: 1 },
@@ -43,7 +43,7 @@ describe('the project file', () => {
     const file = toProjectFile(project(shop))
     expect(file.terminals).toEqual([
       { id: 'a', title: 'dev', cwd: '.', command: 'npm run dev' },
-      { id: 'b', title: 'web', cwd: 'web', last: 'make watch' },
+      { id: 'b', title: 'web', cwd: 'web', last: 'make watch', lastCwd: '.' },
       { id: 'c', title: 'logs', cwd: outside }
     ])
     expect(file.presets[0].terminals[0].cwd).toBe('api')
@@ -54,7 +54,7 @@ describe('the project file', () => {
     const file = JSON.parse(JSON.stringify(toProjectFile(project(shop))))
     const read = fromProjectFile(elsewhere, file)!
     expect(read.terminals!.map((t) => t.cwd)).toEqual([elsewhere, join(elsewhere, 'web'), outside])
-    expect(read.terminals![1].last).toBe('make watch')
+    expect(read.terminals![1]).toMatchObject({ last: 'make watch', lastCwd: elsewhere })
     expect(read.presets![0].terminals[0].cwd).toBe(join(elsewhere, 'api'))
     expect(read.customCommands).toEqual([{ id: 'x', name: 'db', command: 'docker compose up db' }])
     expect(read.aliases).toEqual({ '\nnpm run dev': 'server' })

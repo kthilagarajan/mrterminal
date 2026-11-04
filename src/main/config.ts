@@ -42,6 +42,7 @@ function normalizeProject(raw: Partial<Project>): Project | null {
           .map((t) => (!t.command && t.title === 'shell' ? { ...t, title: basename(t.cwd) || t.title } : t))
           .map(({ resume, ...t }) => (typeof resume === 'string' && resume ? { ...t, resume } : t))
           .map(({ last, ...t }) => (typeof last === 'string' && last ? { ...t, last } : t))
+          .map(({ lastCwd, ...t }) => (typeof lastCwd === 'string' && lastCwd ? { ...t, lastCwd } : t))
       : [],
     layout: raw.layout ?? null,
     expanded: raw.expanded !== false,

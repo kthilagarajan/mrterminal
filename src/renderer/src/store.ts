@@ -229,8 +229,11 @@ function setResume(id: string, command: string | undefined): void {
   const def = project?.terminals.find((t) => t.id === id)
   if (!project || !def) return
   if (command && !state.ran.includes(id)) setState({ ran: [...state.ran, id] })
-  if (def.resume === command && (!command || def.last === command)) return
-  const update = ({ resume: _old, ...t }: TerminalDef): TerminalDef => (command ? { ...t, resume: command, last: command } : t)
+  if (def.resume === command && (!command || (def.last === command && (def.command || def.lastCwd === def.cwd)))) return
+  // While a command runs, a plain shell's cwd is still where it started: the
+  // shell only reports a new folder at its next prompt.
+  const update = ({ resume: _old, ...t }: TerminalDef): TerminalDef =>
+    command ? { ...t, resume: command, last: command, ...(t.command ? {} : { lastCwd: t.cwd }) } : t
   editProject(project.id, (p) => ({ ...p, terminals: p.terminals.map((t) => (t.id === id ? update(t) : t)) }))
 }
 

@@ -52,11 +52,13 @@ export function applyRestore(mode: Exclude<RestoreMode, 'ask'>, remember: boolea
     config = { ...config, projects: config.projects.map((p) => ({ ...p, terminals: [], layout: null })) }
   }
   if (remember) config = { ...config, settings: { ...config.settings, restoreOnLaunch: mode } }
-  // Projects load when first shown, but what was running when the app quit
-  // starts again right away, in every project.
+  // Projects load when first shown, but every command that has run before
+  // (still running at quit, or remembered as a terminal's last command,
+  // typed by hand, from the sidebar or by an agent) starts again right
+  // away, in every project.
   const { opened } = getState()
   const running = mode === 'resume'
-    ? config.projects.filter((p) => !opened.includes(p.id) && p.terminals.some((t) => t.resume)).map((p) => p.id)
+    ? config.projects.filter((p) => !opened.includes(p.id) && p.terminals.some((t) => t.resume || t.last)).map((p) => p.id)
     : []
   setState({ ready: true, restoreRun: mode === 'resume', config, opened: [...opened, ...running] })
 }
