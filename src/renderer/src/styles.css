@@ -914,6 +914,16 @@ kbd {
   cursor: default;
 }
 
+.menu-compact {
+  min-width: 0;
+  padding: 3px;
+}
+
+.menu-compact .menu-item {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 .menu-danger {
   color: var(--red);
 }

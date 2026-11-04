@@ -38,13 +38,13 @@ export function OpenInButton({ path }: { path: string }) {
 
   const showMenu = (element: Element): void => {
     const items: MenuEntry[] = editors.map((editor) => ({
-      label: editor.id === current.id ? `${editor.name}  ✓` : editor.name,
+      label: editor.id === current.id ? `${editor.name} ✓` : editor.name,
       tooltip: editor.id === current.id ? undefined : `Open in ${editor.name} and make it the default`,
       action: () => void open(editor)
     }))
     const folder = window.api.platform === 'darwin' ? 'Finder' : window.api.platform === 'win32' ? 'Explorer' : 'File Manager'
     items.push(null, { label: `Show in ${folder}`, action: () => window.api.reveal(path) })
-    openMenu(below(element), items)
+    openMenu(below(element), items, undefined, true)
   }
 
   return (
