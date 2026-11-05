@@ -18,6 +18,11 @@ export interface Settings {
   showRunning: boolean
   /** Id of the editor the top bar's "Open in" button uses. null = the first one found. */
   editor: string | null
+  /**
+   * Id of the global command the top bar's terminal button starts, the one
+   * picked last from its menu. null = a plain shell.
+   */
+  terminalCommand: string | null
 }
 
 /** An editor or IDE found on this machine that can open a project folder. */
@@ -242,7 +247,8 @@ export const DEFAULT_SETTINGS: Settings = {
   fontFamily: null,
   theme: 'midnight',
   showRunning: true,
-  editor: null
+  editor: null,
+  terminalCommand: null
 }
 
 export function defaultConfig(): Config {

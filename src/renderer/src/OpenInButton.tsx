@@ -7,7 +7,8 @@ import { patchSettings, useStore } from './store'
 /**
  * "Open in Cursor ▾" in the top bar: opens the project folder in an editor.
  * The left part uses the editor picked last; the arrow lists every editor
- * installed. Hidden when none is found.
+ * installed, and can reset the choice. It always opens a new editor window.
+ * Hidden when no editor is found.
  */
 export function OpenInButton({ path }: { path: string }) {
   const chosen = useStore((s) => s.config?.settings.editor ?? null)
@@ -43,7 +44,15 @@ export function OpenInButton({ path }: { path: string }) {
       action: () => void open(editor)
     }))
     const folder = window.api.platform === 'darwin' ? 'Finder' : window.api.platform === 'win32' ? 'Explorer' : 'File Manager'
-    items.push(null, { label: `Show in ${folder}`, action: () => window.api.reveal(path) })
+    items.push(null)
+    if (chosen !== null && chosen !== editors[0].id) {
+      items.push({
+        label: 'Reset default',
+        tooltip: `Go back to ${editors[0].name}, the first editor found`,
+        action: () => patchSettings({ editor: null })
+      })
+    }
+    items.push({ label: `Show in ${folder}`, action: () => window.api.reveal(path) })
     openMenu(below(element), items, undefined, true)
   }
 
