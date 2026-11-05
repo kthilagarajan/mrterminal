@@ -161,9 +161,10 @@ its scripts from disk, and a menu to move it up or down, open its folder or
 remove it. Drag a project to reorder; a blue line shows where it will land.
 
 **Open in your editor.** Beside *+ Terminal* in the top bar, a button opens the
-project's folder in your editor. Its arrow lists every editor MrTerminal finds
+project's folder in a new window of your editor. Its arrow lists every editor MrTerminal finds
 on the machine (Cursor, VS Code, Windsurf, Zed, Sublime Text, the JetBrains
-IDEs, Fleet); the one you pick becomes the button's default.
+IDEs, Fleet); the one you pick becomes the button's default, and **Reset
+default** goes back to the first one found.
 
 **Running** means a command is executing in that terminal right now. A
 terminal waiting at its prompt is not running, whatever opened it. The count
@@ -213,7 +214,9 @@ commands offered in every project: Claude Code (`claude`), Codex (`codex`),
 Cursor (`cursor-agent`), Antigravity (`agy`) and Grok (`grok`), each found
 where it is installed on first launch. Click one to open a new terminal in the
 project's folder running it, or press **current** to type it into the terminal
-on screen. **Global commands…** at the bottom opens Settings, where each
+on screen. The button then shows what you picked last (say *Claude Code*), so
+the next click starts it again; pick **Terminal** or **Reset to Terminal** for a
+plain shell. **Global commands…** at the bottom opens Settings, where each
 command's name and program (a path, plus any flags) can be changed, hidden
 from the menu, or removed, and your own commands added.
 
