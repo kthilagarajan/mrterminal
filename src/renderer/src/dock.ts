@@ -358,9 +358,10 @@ export class ProjectDock {
     return {
       // A command typed into a plain shell (by hand or by an agent) is saved
       // as that terminal's command, so launching the preset runs it.
-      terminals: terminals.map(({ resume: _running, last, ...t }) => {
+      terminals: terminals.map(({ resume: _running, last, lastCwd, ...t }) => {
         const command = t.command ?? last
-        return { ...t, ...(command ? { command } : {}), cwd: getRuntime(t.id)?.cwd ?? t.cwd }
+        const cwd = !t.command && last && lastCwd ? lastCwd : (getRuntime(t.id)?.cwd ?? t.cwd)
+        return { ...t, ...(command ? { command } : {}), cwd }
       }),
       layout: terminals.length > 0 ? this.api.toJSON() : null
     }

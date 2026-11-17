@@ -53,8 +53,8 @@ function toAbsolute(projectPath: string, cwd: string): string {
   return isAbsolute(cwd) ? cwd : resolve(projectPath, cwd)
 }
 
-function terminalOut(projectPath: string, { resume: _session, ...t }: TerminalDef): TerminalDef {
-  return { ...t, cwd: toRelative(projectPath, t.cwd) }
+function terminalOut(projectPath: string, { resume: _session, lastCwd, ...t }: TerminalDef): TerminalDef {
+  return { ...t, cwd: toRelative(projectPath, t.cwd), ...(lastCwd ? { lastCwd: toRelative(projectPath, lastCwd) } : {}) }
 }
 
 function terminalIn(projectPath: string, raw: unknown): TerminalDef | null {
@@ -67,6 +67,7 @@ function terminalIn(projectPath: string, raw: unknown): TerminalDef | null {
   }
   if (typeof t.command === 'string' && t.command) def.command = t.command
   if (typeof t.last === 'string' && t.last) def.last = t.last
+  if (def.last && typeof t.lastCwd === 'string' && t.lastCwd) def.lastCwd = toAbsolute(projectPath, t.lastCwd)
   return def
 }
 
