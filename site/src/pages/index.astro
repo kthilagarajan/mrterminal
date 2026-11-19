@@ -6,7 +6,30 @@ const base = import.meta.env.BASE_URL
 const setupUrl = new URL(`${base}setup.md`, Astro.site).href
 const agentPrompt = `Read ${setupUrl} and set up MrTerminal for me.`
 const description =
-  'MrTerminal is a free macOS, Windows and Linux app that runs every script your projects define in one window: dev servers, tests and workers side by side, honest running status, presets and sessions that survive restarts. Coding agents can drive it with the mrt CLI.'
+  'MrTerminal is a free terminal workspace for macOS, Windows and Linux, made for people and AI coding agents alike. Every script your projects define is one click away, Claude Code, Codex and Cursor start from the top bar, and agents drive the same terminals you watch with the mrt CLI.'
+
+const audiences = [
+  {
+    label: 'For you',
+    dot: 'bg-accent',
+    items: [
+      'Every script your repos define gets a ▶ button. No more guessing between pnpm dev and make run.',
+      'Green means it is running right now. One click stops it.',
+      'Drag terminals into splits and tabs, save them as presets, and get them back after a restart.',
+      'Your real zsh, bash, fish or PowerShell, with your prompt, aliases and history. Keyboard shortcuts for everything.'
+    ]
+  },
+  {
+    label: 'For your agents',
+    dot: 'bg-run',
+    items: [
+      'Start Claude Code, Codex, Cursor, Antigravity or Grok in the project folder with one click.',
+      'mrt lets an agent start a server, wait until it is ready, read its logs and run the tests with their real exit code.',
+      'Agents reuse the terminals already open instead of spawning a dozen new ones.',
+      'Every terminal an agent touches is a normal tab in your window. Watch it, take over, or press Ctrl-C.'
+    ]
+  }
+]
 
 const features = [
   {
@@ -14,24 +37,36 @@ const features = [
     body: 'Reads package.json, Makefile, pyproject.toml, justfile, Procfile, compose.yaml, Cargo.toml, go.mod and more, including sub-folders, and picks the right runner: npm, pnpm, yarn, bun, uv, poetry, make.'
   },
   {
+    title: 'Agents in one click',
+    body: 'The arrow on + Terminal lists Claude Code, Codex, Cursor, Antigravity and Grok, found wherever they are installed. Add your own agents and flags under Settings → Global commands.'
+  },
+  {
     title: 'Honest “running” status',
-    body: 'Green means a command is executing right now, as your shell reports it. It does not mean a tab is merely open. Every project card shows what runs inside it, each with its own stop button.'
+    body: 'Green means a command is executing right now, as your shell reports it, whether you started it or an agent did. Every project card shows what runs inside it, each with its own stop button.'
+  },
+  {
+    title: 'Terminals you share with agents',
+    body: 'An agent that runs your dev server finds the terminal it already has and reuses it. You see one dev server, not five, and you can type into the same tab.'
   },
   {
     title: 'Your real shell',
     body: 'Each terminal is your own login shell, with your prompt, aliases and history. MrTerminal types the command for you, so Ctrl-C drops you back at a prompt.'
   },
   {
-    title: 'Layouts you drag into place',
-    body: 'Split, stack and resize terminals. Each project keeps its own layout, and its terminals keep running while you look at another project.'
+    title: 'Layouts and presets',
+    body: 'Split, stack and resize terminals. Save a set (“Full stack”) and bring it all back tomorrow with one click. Each project keeps its own layout.'
   },
   {
-    title: 'Presets',
-    body: 'Save a set of terminals and their arrangement (“Full stack”) and bring them all back tomorrow with one click.'
+    title: 'Commands come back where they ran',
+    body: 'Quit, reboot or crash: your projects, layouts and last commands return, each in the folder it ran in, whether you typed it or an agent sent it.'
   },
   {
-    title: 'Sessions that survive restarts',
-    body: 'Quit and reopen: your projects, layouts and commands come back, and MrTerminal can start them again for you.'
+    title: 'Open in your editor',
+    body: 'One button in the top bar opens the project in Cursor, VS Code, Windsurf, Zed, Sublime Text or a JetBrains IDE, whichever you have installed.'
+  },
+  {
+    title: 'Keyboard first',
+    body: 'New terminal, split, restart, clear, close, jump to a tab or a project, and reopen what you just closed (⇧⌘T). Settings lists every shortcut.'
   }
 ]
 ---
@@ -43,12 +78,12 @@ const features = [
         Free and open source · macOS · Windows · Linux
       </p>
       <h1 class="mx-auto max-w-4xl text-4xl font-semibold tracking-tight text-white sm:text-6xl">
-        One window for every terminal your projects need
+        One terminal workspace for you and your AI agents
       </h1>
       <p class="mx-auto mt-6 max-w-2xl text-lg text-muted">
-        Add a repository and every script it defines is one click away. Run the dev server, the tests and the worker
-        side by side, see at a glance what is running, and get it all back after a restart. Your coding agent can
-        use it too.
+        Every terminal your projects need, in one window. Run the dev server, the tests and the worker side by side,
+        with Claude Code, Codex or Cursor working right next to them. You click, your agent runs
+        <code class="text-text">mrt</code>, and you both see the same terminals.
       </p>
       <div class="mt-9 flex flex-wrap justify-center gap-3">
         <a
@@ -56,7 +91,7 @@ const features = [
           href="https://github.com/kthilagarajan/mrterminal/releases/latest">Download MrTerminal</a
         >
         <a class="rounded-lg border border-line bg-panel px-5 py-2.5 font-medium text-white hover:bg-panel2" href={`${base}docs/agents/`}
-          >Use it with coding agents</a
+          >Set up your agent</a
         >
       </div>
 
@@ -66,8 +101,9 @@ const features = [
           Ready for coding agents
         </p>
         <p class="mt-1 text-sm text-muted">
-          Paste this into Claude Code, Codex, Cursor or any coding agent. It installs MrTerminal, the
-          <code class="text-text">mrt</code> command and the skill for you.
+          Paste this into Claude Code, Codex, Cursor or any coding agent. It reads the setup guide written for agents,
+          asks before installing anything, and sets up MrTerminal, the <code class="text-text">mrt</code> command and
+          the skill for you.
         </p>
         <div class="mt-4 flex flex-col gap-3 rounded-lg border border-line bg-bg p-3 sm:flex-row sm:items-center">
           <code id="agent-prompt" class="flex-1 font-mono [overflow-wrap:anywhere] text-[13px] leading-6 text-white">{agentPrompt}</code>
@@ -92,11 +128,39 @@ const features = [
       />
     </section>
 
+    <section class="mx-auto max-w-6xl px-5 pt-24" aria-labelledby="both">
+      <h2 id="both" class="text-3xl font-semibold tracking-tight text-white">Made for both of you</h2>
+      <p class="mt-3 max-w-2xl text-muted">
+        A real project means four or five long-running commands across more than one repository, and now an agent or
+        two working on them. MrTerminal gives you buttons and gives your agent a command line, over the same terminals.
+      </p>
+      <div class="mt-10 grid gap-4 lg:grid-cols-2">
+        {
+          audiences.map((a) => (
+            <div class="rounded-xl border border-line bg-panel p-6">
+              <p class="flex items-center gap-2 font-medium text-white">
+                <span class={`size-2 rounded-full ${a.dot}`} />
+                {a.label}
+              </p>
+              <ul class="mt-4 space-y-3 text-sm leading-6 text-muted">
+                {a.items.map((item) => (
+                  <li class="flex gap-3">
+                    <span class="text-faint">›</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
     <section class="mx-auto max-w-6xl px-5 pt-24" aria-labelledby="features">
       <h2 id="features" class="text-3xl font-semibold tracking-tight text-white">Stop hunting for the right tab</h2>
       <p class="mt-3 max-w-2xl text-muted">
-        A real project means four or five long-running commands across more than one repository. MrTerminal reads the
-        commands your projects already define, and gives each one a button.
+        MrTerminal reads the commands your projects already define and gives each one a button. Everything you can
+        click, your agent can do from the command line.
       </p>
       <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {
@@ -111,14 +175,19 @@ const features = [
     </section>
 
     <section class="mx-auto grid max-w-6xl items-center gap-12 px-5 pt-28 lg:grid-cols-2" aria-labelledby="agents">
-      <div>
+      <div class="min-w-0">
         <p class="text-sm font-medium text-accent-soft">mrt, the command line</p>
         <h2 id="agents" class="mt-2 text-3xl font-semibold tracking-tight text-white">
           Your coding agent works in your terminals, where you can see it
         </h2>
         <p class="mt-4 text-muted">
-          The <code class="text-text">mrt</code> command can do everything a click can. Claude Code and other agents can
-          use it to start the dev server, wait until it is ready, run the tests and read the result.
+          The <code class="text-text">mrt</code> command can do everything a click can. Claude Code, Codex and other
+          agents use it to start the dev server, wait until it is ready, read the stack trace, fix it, restart and run
+          the tests.
+        </p>
+        <p class="mt-4 text-muted">
+          They check what is already open first and reuse it, so the dev server you started this morning is the one
+          the agent restarts.
         </p>
         <p class="mt-4 text-muted">
           Nothing runs out of sight. Every terminal an agent opens or types into is a normal tab in your window,
@@ -166,8 +235,13 @@ const features = [
           that are already running are kept, and stopped ones start again.
         </p>
         <p class="mt-4 text-muted">
+          Each project can keep its terminals, commands and presets in a <code class="text-text">.mrterminal/project.json</code>
+          you check in, so teammates get the same setup when they add the folder.
+        </p>
+        <p class="mt-4 text-muted">
           Everything is stored as JSON in <code class="text-text">~/.mrterminal/config.json</code>, described by a
-          <a class="text-accent-soft hover:underline" href={`${base}docs/config/`}>published schema</a>.
+          <a class="text-accent-soft hover:underline" href={`${base}docs/config/`}>published schema</a>, so you
+          and your agent can both read it.
         </p>
       </div>
     </section>
