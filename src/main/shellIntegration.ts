@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
+import { cwdFromOsc7 } from '@shared/cwd'
 import { configDir } from './config'
 
 /**
@@ -240,4 +241,21 @@ export function parseMarks(text: string): Mark[] {
 /** The last command mark in a chunk of terminal output, if any. */
 export function lastMark(text: string): 'A' | 'C' | 'D' | null {
   return parseMarks(text).at(-1)?.kind ?? null
+}
+
+export interface CwdReport {
+  /** The shell's directory, decoded from the OSC 7 file URI. */
+  cwd: string
+  start: number
+  end: number
+}
+
+/** Every OSC 7 directory report in a piece of terminal output, in order. */
+export function parseCwdReports(text: string, platform: string = process.platform): CwdReport[] {
+  const reports: CwdReport[] = []
+  for (const match of text.matchAll(/\x1b\]7;([^\x07\x1b]*)(?:\x07|\x1b\\)/g)) {
+    const cwd = cwdFromOsc7(match[1], platform)
+    if (cwd !== null) reports.push({ cwd, start: match.index, end: match.index + match[0].length })
+  }
+  return reports
 }

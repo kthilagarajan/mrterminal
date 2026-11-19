@@ -4,7 +4,7 @@ import { basename } from 'node:path'
 import * as pty from 'node-pty'
 import type { CommandResult, PtyCreateOptions, PtyExit, PtyStatus } from '@shared/types'
 import { plainText } from './plainText'
-import { parseMarks, shellLaunch } from './shellIntegration'
+import { parseCwdReports, parseMarks, shellLaunch, type Mark } from './shellIntegration'
 
 /** One command line the shell ran, located in the session's output. */
 interface CommandRecord {
@@ -37,6 +37,12 @@ interface Session {
   tail: string
   /** The command line running now, when the shell reports it. */
   line?: string
+  /** The folder the shell was in when that line started. */
+  lineCwd?: string
+  /** The shell's folder, as last reported (OSC 7), or where it started. */
+  cwd: string
+  /** Output offset where the last directory report ended. */
+  cwdUpTo: number
   /** Output offset where the last mark found ended; marks before it are already counted. */
   markedUpTo: number
   /** The most recent output; its first character is output offset `outputStart`. */
@@ -145,6 +151,8 @@ export class PtyManager {
       integrated: false,
       entered: false,
       tail: '',
+      cwd: cwdOk ? opts.cwd : homedir(),
+      cwdUpTo: 0,
       markedUpTo: 0,
       output: '',
       outputStart: 0,
@@ -340,7 +348,22 @@ export class PtyManager {
     const textStart = base - session.tail.length
     // Long enough for a C mark with its command line (see shellIntegration.ts).
     session.tail = text.slice(-4096)
-    for (const mark of parseMarks(text)) {
+    // Directory reports and marks in output order: the folder a command line
+    // starts in is the one reported by the prompt it was typed at.
+    type Event = { at: number; mark: Mark; cwd?: undefined } | { at: number; mark?: undefined; cwd: string; start: number; end: number }
+    const events: Event[] = [
+      ...parseMarks(text).map((mark): Event => ({ at: mark.start, mark })),
+      ...parseCwdReports(text).map(({ cwd, start, end }): Event => ({ at: start, cwd, start, end }))
+    ].sort((a, b) => a.at - b.at)
+    for (const event of events) {
+      if (event.mark === undefined) {
+        const end = textStart + event.end
+        if (textStart + event.start < session.cwdUpTo) continue
+        session.cwdUpTo = end
+        session.cwd = event.cwd
+        continue
+      }
+      const mark = event.mark
       const start = textStart + mark.start
       const end = textStart + mark.end
       if (start < session.markedUpTo) continue
@@ -352,6 +375,7 @@ export class PtyManager {
       // newest entry (HISTCONTROL=ignoredups): the line typed on start is
       // often just that, but it is known anyway.
       session.line = mark.kind === 'C' ? (mark.commandLine ?? (session.starting ? session.startCommand : undefined)) : undefined
+      session.lineCwd = mark.kind === 'C' ? session.cwd : undefined
       if (mark.kind === 'C') {
         session.starting = false
         if (open && open.end === undefined) open.end = start
@@ -417,7 +441,8 @@ export class PtyManager {
     if (busy) session.sawBusy = true
     session.busy = busy
     session.process = process
-    this.events.status({ id, busy, process, command: busy ? session.line : undefined })
+    const line = busy ? session.line : undefined
+    this.events.status({ id, busy, process, command: line, cwd: line ? session.lineCwd : undefined })
   }
 
   /**

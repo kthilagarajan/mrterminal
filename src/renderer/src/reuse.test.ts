@@ -30,6 +30,13 @@ describe('findReusable', () => {
     expect(findReusable(list, { command: 'make watch', cwd: '/p' }, idle)?.id).toBe('a')
   })
 
+  it('matches a stopped shell by the folder the command ran in, not where the shell is now', () => {
+    // `cd web && npm run dev`, stopped: the shell is in /p/web now.
+    const list = [t('a', { cwd: '/p/web', last: 'npm run dev', lastCwd: '/p' })]
+    expect(findReusable(list, { command: 'npm run dev', cwd: '/p' }, idle)?.id).toBe('a')
+    expect(findReusable(list, { command: 'npm run dev', cwd: '/p/web' }, idle)).toBeUndefined()
+  })
+
   it('finds a plain shell running the command right now', () => {
     const list = [t('a', { last: 'old' })]
     const live = liveFrom({ a: { busy: true, command: 'make watch' } })
