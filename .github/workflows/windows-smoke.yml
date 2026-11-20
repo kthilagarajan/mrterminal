@@ -1,0 +1,56 @@
+name: Windows smoke test
+
+# Installs a published Windows release and drives it with Playwright.
+# Runs only from this test branch; screenshots are uploaded as an artifact.
+on:
+  push:
+    branches: [claude/project-thread-m2tpck]
+    paths: ['scripts/smoke/**', '.github/workflows/windows-smoke.yml']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version to test
+        default: '0.7.2'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ inputs.version || '0.7.2' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download and verify installer
+        shell: pwsh
+        run: |
+          $name = "MrTerminal-$env:VERSION-win-x64-setup.exe"
+          Invoke-WebRequest "https://github.com/kthilagarajan/mrterminal/releases/download/v$env:VERSION/$name" -OutFile setup.exe
+          (Get-FileHash setup.exe -Algorithm SHA256).Hash
+          (Get-Item setup.exe).Length
+      - name: Install silently (current user)
+        shell: pwsh
+        run: |
+          $p = Start-Process .\setup.exe -ArgumentList '/S','/currentuser' -PassThru -Wait
+          "installer exit code: $($p.ExitCode)"
+          Get-ChildItem "$env:LOCALAPPDATA\Programs" -Directory | Select-Object Name
+          Get-ChildItem "$env:LOCALAPPDATA\Programs\MrTerminal" | Select-Object Name, Length
+      - name: Install Playwright (no browsers needed)
+        shell: pwsh
+        working-directory: scripts/smoke
+        run: npm install --no-save --no-package-lock playwright@1.56.1
+      - name: Run smoke test
+        shell: pwsh
+        working-directory: scripts/smoke
+        run: node win-smoke.cjs
+      - name: Upload screenshots and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-smoke
+          path: scripts/smoke/out/
