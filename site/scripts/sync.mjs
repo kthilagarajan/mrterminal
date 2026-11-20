@@ -13,7 +13,12 @@ const copies = [
   ['assets/icon.svg', 'public/icon.svg'],
   ['docs/screenshots/workspace.png', 'public/screenshots/workspace.png'],
   ['docs/screenshots/preset.png', 'public/screenshots/preset.png'],
-  ['docs/screenshots/themes.png', 'public/screenshots/themes.png']
+  ['docs/screenshots/themes.png', 'public/screenshots/themes.png'],
+  ['docs/screenshots/agent-workspace.png', 'public/screenshots/agent-workspace.png'],
+  ['docs/screenshots/agent-launcher.png', 'public/screenshots/agent-launcher.png'],
+  ['docs/screenshots/open-in-editor.png', 'public/screenshots/open-in-editor.png'],
+  ['docs/screenshots/global-commands.png', 'public/screenshots/global-commands.png'],
+  ['docs/screenshots/shortcuts.png', 'public/screenshots/shortcuts.png']
 ]
 for (const [from, to] of copies) {
   mkdirSync(dirname(join(site, to)), { recursive: true })

@@ -4,6 +4,7 @@ dist/
 # Copied from the repository by scripts/sync.mjs
 public/skill.md
 public/config.schema.json
+public/project.schema.json
 public/icon.svg
 public/screenshots/
 src/generated/

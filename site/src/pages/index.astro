@@ -31,6 +31,37 @@ const audiences = [
   }
 ]
 
+const gallery = [
+  {
+    src: 'agent-launcher.png',
+    width: 1180,
+    height: 810,
+    title: 'Start an agent from the top bar',
+    body: 'The arrow on + Terminal lists every agent MrTerminal found on your machine. “current” types it into the terminal on screen.'
+  },
+  {
+    src: 'global-commands.png',
+    width: 1138,
+    height: 1218,
+    title: 'Global commands',
+    body: 'Change each agent’s program and flags, hide the ones you don’t use, or add your own. They show up in every project.'
+  },
+  {
+    src: 'open-in-editor.png',
+    width: 1180,
+    height: 810,
+    title: 'Open in your editor',
+    body: 'Jump from the terminals to the code in Cursor, VS Code, Zed or a JetBrains IDE. The one you pick becomes the default.'
+  },
+  {
+    src: 'shortcuts.png',
+    width: 1138,
+    height: 1218,
+    title: 'Every shortcut in one place',
+    body: 'Settings lists the shortcuts for terminals, projects and the window. On Windows and Linux they use Ctrl+Shift, so the shell keeps Ctrl+W, Ctrl+D and Ctrl+K.'
+  }
+]
+
 const features = [
   {
     title: 'Every script, one click away',
@@ -121,10 +152,10 @@ const features = [
     <section class="mx-auto max-w-6xl px-5" aria-label="Screenshot">
       <img
         class="w-full rounded-xl border border-line shadow-2xl shadow-black/50"
-        src={`${base}screenshots/workspace.png`}
-        width="2160"
-        height="1308"
-        alt="MrTerminal running a web app's dev server, tests and a Stripe listener side by side, with an API project's server and worker running in the sidebar"
+        src={`${base}screenshots/agent-workspace.png`}
+        width="2880"
+        height="1800"
+        alt="MrTerminal with a shop's dev server, tests and queue worker side by side, and an agent's terminal below where it lists the terminals with mrt ls, finds the dev server already running and runs the tests"
       />
     </section>
 
@@ -169,6 +200,33 @@ const features = [
               <h3 class="font-medium text-white">{f.title}</h3>
               <p class="mt-2 text-sm leading-6 text-muted">{f.body}</p>
             </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="mx-auto max-w-6xl px-5 pt-24" aria-labelledby="tour">
+      <h2 id="tour" class="text-3xl font-semibold tracking-tight text-white">See it in the app</h2>
+      <p class="mt-3 max-w-2xl text-muted">Straight from MrTerminal, no mock-ups.</p>
+      <div class="mt-10 grid gap-6 md:grid-cols-2">
+        {
+          gallery.map((g) => (
+            <figure class="flex flex-col overflow-hidden rounded-xl border border-line bg-panel">
+              <div class="flex aspect-[4/3] items-start justify-center overflow-hidden border-b border-line bg-bg">
+                <img
+                  class="w-full object-cover object-top"
+                  src={`${base}screenshots/${g.src}`}
+                  width={g.width}
+                  height={g.height}
+                  loading="lazy"
+                  alt={`${g.title}: ${g.body}`}
+                />
+              </div>
+              <figcaption class="p-6">
+                <h3 class="font-medium text-white">{g.title}</h3>
+                <p class="mt-2 text-sm leading-6 text-muted">{g.body}</p>
+              </figcaption>
+            </figure>
           ))
         }
       </div>
