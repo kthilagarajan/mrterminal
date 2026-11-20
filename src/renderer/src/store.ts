@@ -249,6 +249,12 @@ function setResume(id: string, command: string | undefined, cwd?: string): void 
   editProject(project.id, (p) => ({ ...p, terminals: p.terminals.map((t) => (t.id === id ? update(t) : t)) }))
 }
 
+/** Terminals whose command ran before and has stopped, for the play buttons to offer. */
+export function markRan(ids: string[]): void {
+  const added = ids.filter((id) => !state.ran.includes(id))
+  if (added.length > 0) setState({ ran: [...state.ran, ...added] })
+}
+
 export function removeTerminalDef(projectId: string, id: string): void {
   editProject(projectId, (p) => ({ ...p, terminals: p.terminals.filter((t) => t.id !== id) }))
   cancelShow(id)

@@ -19,7 +19,9 @@ import {
   editProject,
   getProject,
   getState,
+  markRan,
   removeTerminalDef,
+  rerunCommand,
   setState,
   subscribe,
   uid
@@ -329,7 +331,16 @@ export class ProjectDock {
     const project = getProject(this.projectId)
     if (!project) return
     const run = getState().restoreRun
-    for (const def of project.terminals) ensureRuntime(def, run)
+    // Only what was still running when the app quit runs again. A command the
+    // user had stopped stays stopped: its terminal opens as a plain shell, and
+    // the project's play button (or the sidebar) starts it again on request.
+    const stopped: string[] = []
+    for (const def of project.terminals) {
+      const wasStopped = run && !def.resume && !!rerunCommand(def)
+      if (wasStopped) stopped.push(def.id)
+      ensureRuntime(def, run, wasStopped)
+    }
+    markRan(stopped)
     this.applyLayout(project.layout)
   }
 
