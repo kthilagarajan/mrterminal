@@ -45,9 +45,10 @@ export interface TerminalDef {
    */
   last?: string
   /**
-   * Where a plain shell was when `last` started. A line such as
-   * `cd api && npm start` leaves the shell in `api` once it stops, so it is
-   * run again from here rather than from wherever the shell is now.
+   * The folder `last` (and `resume`) started in. A command often moves the
+   * shell (`cd web && npm run dev`), and a terminal opened for one script can
+   * be used for another command elsewhere, so `cwd` alone cannot say where
+   * to run it again.
    */
   lastCwd?: string
 }
@@ -182,6 +183,8 @@ export interface PtyStatus {
   process: string
   /** The command line running, when busy and the shell reports it. */
   command?: string
+  /** The folder that command line started in, when known. */
+  cwd?: string
 }
 
 /** A command line run in a terminal, as reported by its shell. */

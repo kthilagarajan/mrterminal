@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cwdFromOsc7 } from './terminalCwd'
+import { cwdFromOsc7 } from './cwd'
 
 describe('cwdFromOsc7', () => {
   it('decodes directory reports without confusing literal URI characters', () => {

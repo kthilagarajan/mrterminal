@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { rm } from 'node:fs/promises'
@@ -8,7 +8,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 const home = mkdtempSync(join(tmpdir(), 'mrterminal-pty-'))
 process.env.MRTERMINAL_HOME = join(home, 'config')
 process.env.HOME = home
-const { PtyManager } = await import('./pty')
+const { PtyManager, commandLine } = await import('./pty')
 
 // Killed shells may still be writing (history, sessions) as this runs; retry.
 // Async retries let ConPTY finish releasing its working directory on Windows.
@@ -54,6 +54,38 @@ for (const shell of [zsh, bash].filter((s): s is string => !!s)) {
       const timedOut = await ptys.waitForCommand('t', third, 500)
       expect(timedOut).toMatchObject({ running: true, timedOut: true })
       ptys.killAll()
+    }, 20000)
+  })
+}
+
+for (const shell of [zsh, bash].filter((s): s is string => !!s)) {
+  describe(`${shell}: where a command line started`, () => {
+    it('is reported with it, from the prompt it was typed at', async () => {
+      writeFileSync(join(home, '.zshenv'), process.env.MRT_TEST_ZSHENV ?? '')
+      writeFileSync(join(home, '.zshrc'), "PROMPT='> '\n")
+      writeFileSync(join(home, '.bash_profile'), "PS1='> '\n")
+      mkdirSync(join(home, 'web dir'), { recursive: true })
+      const statuses: { busy: boolean; command?: string; cwd?: string }[] = []
+      const ptys = new PtyManager({ data: () => {}, exit: () => {}, status: (s) => statuses.push(s) }, () => shell)
+      try {
+        ptys.create({ id: 'w', cwd: home, cols: 80, rows: 24, run: false })
+        await ptys.waitForPrompt('w', 8000)
+        // Typed in one go, as an agent does: the second line starts in the new folder.
+        let before = ptys.lastSeq
+        ptys.write('w', "cd 'web dir'\r")
+        await ptys.waitForCommand('w', before, 8000)
+        before = ptys.lastSeq
+        ptys.write('w', 'sleep 0.3\r')
+        await ptys.waitForCommand('w', before, 8000)
+        expect(statuses.filter((s) => s.command === 'sleep 0.3').at(-1)).toMatchObject({ busy: true, cwd: join(home, 'web dir') })
+        // A line that moves the shell itself started where the prompt was.
+        before = ptys.lastSeq
+        ptys.write('w', 'cd .. && sleep 0.3\r')
+        await ptys.waitForCommand('w', before, 8000)
+        expect(statuses.filter((s) => s.command === 'cd .. && sleep 0.3').at(-1)).toMatchObject({ cwd: join(home, 'web dir') })
+      } finally {
+        ptys.killAll()
+      }
     }, 20000)
   })
 }
@@ -108,3 +140,16 @@ for (const shell of windowsShells) {
     }, 40_000)
   })
 }
+
+describe('commandLine', () => {
+  it('runs a quoted program in PowerShell with the call operator', () => {
+    expect(commandLine('"C:\\Users\\me\\AppData\\Roaming\\npm\\claude.cmd"', 'powershell.exe')).toBe('& "C:\\Users\\me\\AppData\\Roaming\\npm\\claude.cmd"')
+    expect(commandLine("'C:\\tools\\codex.cmd' --resume", 'C:\\Program Files\\PowerShell\\7\\pwsh.exe')).toBe("& 'C:\\tools\\codex.cmd' --resume")
+  })
+
+  it('leaves other commands and shells alone', () => {
+    expect(commandLine('npm run dev', 'powershell.exe')).toBe('npm run dev')
+    expect(commandLine('"/Users/me/My Bin/codex"', '/bin/zsh')).toBe('"/Users/me/My Bin/codex"')
+    expect(commandLine('"C:\\x\\claude.cmd"', 'cmd.exe')).toBe('"C:\\x\\claude.cmd"')
+  })
+})

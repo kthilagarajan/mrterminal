@@ -3,9 +3,10 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { Terminal, type ITheme } from '@xterm/xterm'
 import { getTheme, type Theme } from '@shared/themes'
 import type { TerminalDef } from '@shared/types'
-import { findTerminalDef, getState, rerunCommand, setShellCwd, setStatus } from './store'
+import { findTerminalDef, getState, rerunCommand, rerunCwd, setShellCwd, setStatus } from './store'
 import { findReusable, type LiveTerminal } from './reuse'
-import { cwdFromOsc7 } from './terminalCwd'
+import { cwdFromOsc7 } from '@shared/cwd'
+import { isWindowShortcut } from '@shared/shortcuts'
 
 /**
  * A live terminal: an xterm.js view plus the shell process behind it in the
@@ -81,7 +82,7 @@ const MAC_KEYS: Record<string, string> = {
 /** What a terminal is doing now, for `findReusable`. */
 export function liveTerminal(def: TerminalDef): LiveTerminal {
   const status = getState().statuses[def.id]
-  return { busy: status?.busy ?? false, command: status?.command, cwd: runtimes.get(def.id)?.cwd ?? def.cwd }
+  return { busy: status?.busy ?? false, command: status?.command, cwd: (status?.busy ? status.cwd : undefined) ?? runtimes.get(def.id)?.cwd ?? def.cwd }
 }
 
 /**
@@ -140,15 +141,18 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
     return true
   })
 
-  // A plain shell restarts where it was left; a command where it was launched.
   // Starting again runs the terminal's command, or else the last one that
   // ran in it, read afresh since `def` is the definition it opened with.
   // The first start picks up whatever was running when the app last quit.
-  // A plain shell's remembered command runs from where it was started.
-  const start = (runCommand: boolean, folder?: string, command = rerunCommand(findTerminalDef(id) ?? def)): void => {
-    const now = findTerminalDef(id) ?? def
-    const remembered = !now.command && command && now.lastCwd && (command === now.last || command === now.resume)
-    const directory = folder ?? (def.command ? def.cwd : remembered ? now.lastCwd! : cwd)
+  // It runs in the folder it last started in (it may have `cd`'d, or been
+  // typed somewhere else than the terminal's script); otherwise a plain
+  // shell restarts where it was left, a command where it was launched.
+  const start = (
+    runCommand: boolean,
+    directory?: string,
+    command = rerunCommand(findTerminalDef(id) ?? def)
+  ): void => {
+    directory ??= rerunCwd(findTerminalDef(id) ?? def, command, cwd)
     started = true
     exited = false
     cwd = directory
@@ -164,6 +168,11 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       })
   }
 
+  const firstCommand = (): string | undefined => {
+    const now = findTerminalDef(id) ?? def
+    return now.resume ?? rerunCommand(now)
+  }
+
   // xterm can only measure itself once it is on screen, so the shell is
   // started on first layout and always gets the real size.
   const layout = (): void => {
@@ -174,14 +183,14 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       if (wantsFocus) term.focus()
     }
     fit.fit()
-    if (!started) start(run, undefined, def.resume ?? rerunCommand(def))
+    if (!started) start(run, undefined, firstCommand())
     else window.api.pty.resize(id, term.cols, term.rows)
   }
   // A terminal in a background tab is never laid out. Its command still has
   // to start (think of a restored session), so begin at the default size; it
   // is resized the moment the tab is shown.
   const startHidden = window.setTimeout(() => {
-    if (!started) start(run, undefined, def.resume ?? rerunCommand(def))
+    if (!started) start(run, undefined, firstCommand())
   }, 500)
   const observer = new ResizeObserver(() => {
     cancelAnimationFrame(frame)
@@ -208,6 +217,9 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       window.api.pty.write(id, sequence)
       return false
     })
+  } else {
+    // Ctrl+B, Ctrl+O, Ctrl+Q and Ctrl+, belong to the window, not the shell.
+    term.attachCustomKeyEventHandler((event) => !isWindowShortcut(event, window.api.platform))
   }
 
   const runtime: Runtime = {
@@ -275,7 +287,7 @@ export function setTerminalTheme(theme: Theme): void {
 export function connectPtyEvents(): void {
   window.api.pty.onData(({ id, data }) => runtimes.get(id)?.term.write(data))
   window.api.pty.onExit(({ id, exitCode, signal }) => exitHandlers.get(id)?.(signal ? 1 : exitCode))
-  window.api.pty.onStatus(({ id, busy, process, command }) => {
-    if (runtimes.has(id)) setStatus(id, { busy, process, command })
+  window.api.pty.onStatus(({ id, busy, process, command, cwd }) => {
+    if (runtimes.has(id)) setStatus(id, { busy, process, command, cwd })
   })
 }

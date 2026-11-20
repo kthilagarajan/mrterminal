@@ -25,8 +25,9 @@ function project(path: string, extra: Partial<Project> = {}): Project {
     path,
     terminals: [
       { id: 'a', title: 'dev', cwd: path, command: 'npm run dev', resume: 'npm run dev' },
-      { id: 'b', title: 'web', cwd: join(path, 'web'), last: 'make watch', lastCwd: path },
-      { id: 'c', title: 'logs', cwd: outside }
+      { id: 'b', title: 'web', cwd: join(path, 'web'), last: 'make watch' },
+      { id: 'c', title: 'logs', cwd: outside },
+      { id: 'd', title: 'api', cwd: path, last: 'cd api && go run .', lastCwd: path }
     ],
     layout: { grid: 1 },
     customCommands: [{ id: 'x', name: 'db', command: 'docker compose up db' }],
@@ -43,8 +44,9 @@ describe('the project file', () => {
     const file = toProjectFile(project(shop))
     expect(file.terminals).toEqual([
       { id: 'a', title: 'dev', cwd: '.', command: 'npm run dev' },
-      { id: 'b', title: 'web', cwd: 'web', last: 'make watch', lastCwd: '.' },
-      { id: 'c', title: 'logs', cwd: outside }
+      { id: 'b', title: 'web', cwd: 'web', last: 'make watch' },
+      { id: 'c', title: 'logs', cwd: outside },
+      { id: 'd', title: 'api', cwd: '.', last: 'cd api && go run .', lastCwd: '.' }
     ])
     expect(file.presets[0].terminals[0].cwd).toBe('api')
     expect(file).not.toHaveProperty('color')
@@ -53,8 +55,9 @@ describe('the project file', () => {
   it('reads back to the same project wherever it is checked out', () => {
     const file = JSON.parse(JSON.stringify(toProjectFile(project(shop))))
     const read = fromProjectFile(elsewhere, file)!
-    expect(read.terminals!.map((t) => t.cwd)).toEqual([elsewhere, join(elsewhere, 'web'), outside])
-    expect(read.terminals![1]).toMatchObject({ last: 'make watch', lastCwd: elsewhere })
+    expect(read.terminals!.map((t) => t.cwd)).toEqual([elsewhere, join(elsewhere, 'web'), outside, elsewhere])
+    expect(read.terminals![1].last).toBe('make watch')
+    expect(read.terminals![3].lastCwd).toBe(elsewhere)
     expect(read.presets![0].terminals[0].cwd).toBe(join(elsewhere, 'api'))
     expect(read.customCommands).toEqual([{ id: 'x', name: 'db', command: 'docker compose up db' }])
     expect(read.aliases).toEqual({ '\nnpm run dev': 'server' })
@@ -86,7 +89,7 @@ describe('the project file', () => {
     const written = new Map<string, string>()
     writeProjectFiles([project(dir)], written)
     const path = projectFilePath(dir)
-    expect(readProjectFile(dir)!.terminals!.map((t) => t.title)).toEqual(['dev', 'web', 'logs'])
+    expect(readProjectFile(dir)!.terminals!.map((t) => t.title)).toEqual(['dev', 'web', 'logs', 'api'])
     expect(JSON.parse(readFileSync(path, 'utf8')).$schema).toMatch(/project\.schema\.json$/)
 
     const before = statSync(path).mtimeMs

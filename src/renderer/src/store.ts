@@ -17,6 +17,8 @@ export interface TermStatus {
   process: string
   /** The command line running, when the shell reports it. */
   command?: string
+  /** The folder that command line started in. */
+  cwd?: string
   /** Set once the shell has exited with a non-zero code. */
   exitCode?: number
 }
@@ -132,6 +134,16 @@ export function rerunCommand(def: TerminalDef): string | undefined {
   return def.command ?? def.last
 }
 
+/**
+ * Where to start a terminal that is about to run `command`: the folder that
+ * command last started in when it is the terminal's last one, else the
+ * terminal's own folder (`shellCwd` for a plain shell that has moved).
+ */
+export function rerunCwd(def: TerminalDef, command: string | undefined, shellCwd = def.cwd): string {
+  if (command && command === def.last && def.lastCwd) return def.lastCwd
+  return def.command ? def.cwd : shellCwd
+}
+
 export function getProject(id: string): Project | undefined {
   return state.config?.projects.find((p) => p.id === id)
 }
@@ -224,16 +236,16 @@ export function setShellCwd(id: string, cwd: string): void {
  * app restarts, whether it came from the sidebar, an agent or was typed by
  * hand. `last` keeps it after it stops, for starting the terminal again.
  */
-function setResume(id: string, command: string | undefined): void {
+function setResume(id: string, command: string | undefined, cwd?: string): void {
   const project = state.config?.projects.find((p) => p.terminals.some((t) => t.id === id))
   const def = project?.terminals.find((t) => t.id === id)
   if (!project || !def) return
   if (command && !state.ran.includes(id)) setState({ ran: [...state.ran, id] })
-  if (def.resume === command && (!command || (def.last === command && (def.command || def.lastCwd === def.cwd)))) return
-  // While a command runs, a plain shell's cwd is still where it started: the
-  // shell only reports a new folder at its next prompt.
+  // Where it started: as the shell reported it, else where the terminal is.
+  const folder = command ? (cwd ?? (def.last === command ? def.lastCwd : undefined) ?? def.cwd) : undefined
+  if (def.resume === command && (!command || (def.last === command && def.lastCwd === folder))) return
   const update = ({ resume: _old, ...t }: TerminalDef): TerminalDef =>
-    command ? { ...t, resume: command, last: command, ...(t.command ? {} : { lastCwd: t.cwd }) } : t
+    command ? { ...t, resume: command, last: command, lastCwd: folder } : t
   editProject(project.id, (p) => ({ ...p, terminals: p.terminals.map((t) => (t.id === id ? update(t) : t)) }))
 }
 
@@ -259,7 +271,7 @@ function cancelShow(id: string): void {
 export function setStatus(id: string, status: Omit<TermStatus, 'shown'>): void {
   const shown = status.busy && (state.statuses[id]?.shown ?? false)
   // Only what has been running long enough to show counts as running at quit.
-  if (shown && status.command) setResume(id, status.command)
+  if (shown && status.command) setResume(id, status.command, status.cwd)
   if (!status.busy) {
     cancelShow(id)
     // Not on the reset a starting terminal does, which would forget it.
@@ -272,7 +284,7 @@ export function setStatus(id: string, status: Omit<TermStatus, 'shown'>): void {
         const current = state.statuses[id]
         if (!current?.busy) return
         setState({ statuses: { ...state.statuses, [id]: { ...current, shown: true } } })
-        if (current.command) setResume(id, current.command)
+        if (current.command) setResume(id, current.command, current.cwd)
       }, SHOW_AFTER_MS)
     )
   }
