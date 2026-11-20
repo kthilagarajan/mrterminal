@@ -162,9 +162,22 @@ export function SettingsDialog({ config }: { config: Config }) {
     applyAppearance({ ...settings, ...patch })
   }
 
+  // Opened with a shortcut, Settings leaves the focus in the terminal, which
+  // would take Escape; listen on the window, before the terminal sees it.
+  useEffect(() => {
+    const key = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
+      event.stopPropagation()
+      close()
+    }
+    window.addEventListener('keydown', key, true)
+    return () => window.removeEventListener('keydown', key, true)
+  }, [])
+
   return (
     <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-      <div className="dialog dialog-settings" onKeyDown={(e) => e.key === 'Escape' && close()}>
+      <div className="dialog dialog-settings">
         <h2>Settings</h2>
         <div className="settings-tabs" role="tablist">
           {TABS.map(([id, label]) => (

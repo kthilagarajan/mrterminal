@@ -6,6 +6,7 @@ import type { TerminalDef } from '@shared/types'
 import { findTerminalDef, getState, rerunCommand, rerunCwd, setShellCwd, setStatus } from './store'
 import { findReusable, type LiveTerminal } from './reuse'
 import { cwdFromOsc7 } from '@shared/cwd'
+import { isWindowShortcut } from '@shared/shortcuts'
 
 /**
  * A live terminal: an xterm.js view plus the shell process behind it in the
@@ -216,6 +217,9 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       window.api.pty.write(id, sequence)
       return false
     })
+  } else {
+    // Ctrl+B, Ctrl+O, Ctrl+Q and Ctrl+, belong to the window, not the shell.
+    term.attachCustomKeyEventHandler((event) => !isWindowShortcut(event, window.api.platform))
   }
 
   const runtime: Runtime = {

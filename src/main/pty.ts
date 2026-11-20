@@ -97,6 +97,17 @@ export function defaultShell(): string {
   return process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash'
 }
 
+/**
+ * The line to type for `command` in `shell`. PowerShell reads a line that
+ * starts with a quoted path ("C:\Program Files\...\claude.cmd") as a string
+ * and prints it; the call operator `&` runs it instead.
+ */
+export function commandLine(command: string, shell: string): string {
+  const name = basename(shell.replace(/\\/g, '/')).replace(/\.exe$/i, '').toLowerCase()
+  if ((name === 'powershell' || name === 'pwsh') && /^\s*["']/.test(command)) return `& ${command.trim()}`
+  return command
+}
+
 function isDir(path: string): boolean {
   try {
     return statSync(path).isDirectory()
@@ -196,7 +207,8 @@ export class PtyManager {
       if (typed || !opts.command || !cwdOk || this.sessions.get(opts.id) !== session) return
       typed = true
       if (opts.run) this.entered(session)
-      proc.write(opts.run ? `${opts.command}\r` : opts.command)
+      const line = commandLine(opts.command, shell)
+      proc.write(opts.run ? `${line}\r` : line)
     }
     const onFirstOutput = (): void => {
       if (opts.command) session.timers.push(setTimeout(type, 250))
