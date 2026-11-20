@@ -137,7 +137,14 @@ async function step(name, fn) {
     return { ok: a !== b, detail: `toggle button x ${a} -> ${b}` }
   })
   await step('shortcut Ctrl+, settings', async () => {
-    realKeys('^,'); await sleep(1500); await shot('08-settings')
+    await win.locator('.xterm:visible').first().click(); await sleep(300)
+    realKeys('^,'); await sleep(1500)
+    const first = await win.locator('.dialog-settings').count()
+    realKeys('{ESC}'); await sleep(1000)
+    const afterEscape = await win.locator('.dialog-settings').count()
+    record('Escape closes Settings opened with Ctrl+,', first > 0 && afterEscape === 0, `open ${first}, after Escape ${afterEscape}`)
+    if (!afterEscape) { realKeys('^,'); await sleep(1500) }
+    await shot('08-settings')
     const open = await win.locator('.dialog-settings').count()
     for (const tab of ['Global commands', 'Shortcuts']) { const t = win.getByText(tab, { exact: true }).first(); if (await t.count()) { await t.click(); await sleep(700); await shot('09-settings-' + tab.toLowerCase().replace(' ', '-')) } }
     if (open) await win.locator('.backdrop').click({ position: { x: 5, y: 5 } }).catch(() => {})
@@ -177,10 +184,11 @@ async function step(name, fn) {
     return { ok: /serve/.test(after) && /Claude Code/.test(after), detail: 'BEFORE\n' + before + '\nAFTER\n' + after + '\nserve output:\n' + r }
   })
   await step('shell restored in the folder it was in', () => {
-    const s = mrt('ls'); const tmpTerm = s.split('\n').find((l) => /\(shell\)/.test(l) && !/demo\s+\(shell\)$/.test(l))
-    const id = tmpTerm?.split(/\s+/)[0]
+    // The shell that ran `cd $env:TEMP` is titled after its folder once restored.
+    const line = mrt('ls').split('\n').find((l) => /\sTemp\s+\(shell\)/.test(l))
+    const id = line?.split(/\s+/)[0]
     const r = id ? mrt('read', id) : ''
-    return { ok: /Temp/i.test(r), detail: (tmpTerm || 'no moved shell found') + '\n' + r }
+    return { ok: /Local\\Temp>/i.test(r), detail: (line || 'no shell titled Temp') + '\n' + r }
   })
   await app.close()
   fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify(results, null, 2))

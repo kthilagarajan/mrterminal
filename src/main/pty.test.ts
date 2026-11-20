@@ -8,7 +8,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 const home = mkdtempSync(join(tmpdir(), 'mrterminal-pty-'))
 process.env.MRTERMINAL_HOME = join(home, 'config')
 process.env.HOME = home
-const { PtyManager } = await import('./pty')
+const { PtyManager, commandLine } = await import('./pty')
 
 // Killed shells may still be writing (history, sessions) as this runs; retry.
 // Async retries let ConPTY finish releasing its working directory on Windows.
@@ -140,3 +140,16 @@ for (const shell of windowsShells) {
     }, 40_000)
   })
 }
+
+describe('commandLine', () => {
+  it('runs a quoted program in PowerShell with the call operator', () => {
+    expect(commandLine('"C:\\Users\\me\\AppData\\Roaming\\npm\\claude.cmd"', 'powershell.exe')).toBe('& "C:\\Users\\me\\AppData\\Roaming\\npm\\claude.cmd"')
+    expect(commandLine("'C:\\tools\\codex.cmd' --resume", 'C:\\Program Files\\PowerShell\\7\\pwsh.exe')).toBe("& 'C:\\tools\\codex.cmd' --resume")
+  })
+
+  it('leaves other commands and shells alone', () => {
+    expect(commandLine('npm run dev', 'powershell.exe')).toBe('npm run dev')
+    expect(commandLine('"/Users/me/My Bin/codex"', '/bin/zsh')).toBe('"/Users/me/My Bin/codex"')
+    expect(commandLine('"C:\\x\\claude.cmd"', 'cmd.exe')).toBe('"C:\\x\\claude.cmd"')
+  })
+})

@@ -1,11 +1,12 @@
 name: Windows smoke test
 
-# Installs a published Windows release and drives it with Playwright.
-# Runs only from this test branch; screenshots are uploaded as an artifact.
+# Installs MrTerminal on Windows and drives it with Playwright. A push to the
+# test branch builds the installer from that branch; a manual run tests a
+# published release. Screenshots are uploaded as an artifact.
 on:
   push:
     branches: [claude/project-thread-m2tpck]
-    paths: ['scripts/smoke/**', '.github/workflows/windows-smoke.yml']
+    paths: ['src/**', 'scripts/smoke/**', '.github/workflows/windows-smoke.yml']
   workflow_dispatch:
     inputs:
       version:
@@ -26,7 +27,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      - name: Build installer from this branch
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          npm ci
+          npm run build
+          npx electron-builder --win nsis --publish never
+          Copy-Item (Get-ChildItem dist\*-setup.exe | Select-Object -First 1).FullName setup.exe
       - name: Download and verify installer
+        if: github.event_name != 'push'
         shell: pwsh
         run: |
           $name = "MrTerminal-$env:VERSION-win-x64-setup.exe"
