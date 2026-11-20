@@ -132,6 +132,11 @@ function buildMenu(): void {
     accelerator: key(action),
     click: () => send('menu', action)
   })
+  // Shown in the menu, caught by the renderer (see KEYS).
+  const shown = (label: string, action: MenuAction & ShortcutId): MenuItemConstructorOptions => ({
+    ...item(label, action),
+    registerAccelerator: false
+  })
 
   const quit: MenuItemConstructorOptions = {
     label: isMac ? `Quit ${app.name}` : 'Quit',
@@ -171,6 +176,9 @@ function buildMenu(): void {
         item('Close Terminal', 'close-terminal'),
         item('Reopen Closed Tab or Project', 'reopen-closed'),
         { type: 'separator' },
+        shown('Next Tab', 'next-tab'),
+        shown('Previous Tab', 'previous-tab'),
+        { type: 'separator' },
         item('Add Project…', 'add-project'),
         { label: "Install 'mrt' Command…", click: () => void installCli(win) },
         ...(isMac ? [] : [{ type: 'separator' } as const, item('Settings…', 'settings'), quit])
@@ -181,7 +189,9 @@ function buildMenu(): void {
       submenu: [
         { role: 'copy', accelerator: key('copy') },
         { role: 'paste', accelerator: key('paste') },
-        { role: 'selectAll', accelerator: key('select-all') }
+        { role: 'selectAll', accelerator: key('select-all') },
+        { type: 'separator' },
+        item('Find…', 'find')
       ]
     },
     {
@@ -189,6 +199,10 @@ function buildMenu(): void {
       submenu: [
         item('Toggle Sidebar', 'toggle-sidebar'),
         item('Toggle Compact Sidebar', 'toggle-compact'),
+        { type: 'separator' },
+        item('Bigger Text', 'zoom-in'),
+        item('Smaller Text', 'zoom-out'),
+        item('Default Text Size', 'zoom-reset'),
         { type: 'separator' },
         { role: 'togglefullscreen' },
         { role: 'toggleDevTools' }

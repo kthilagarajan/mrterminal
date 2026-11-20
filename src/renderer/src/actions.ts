@@ -1,4 +1,14 @@
-import type { Config, DetectedScript, GlobalCommand, MenuAction, Project, RestoreMode, ScriptGroup } from '@shared/types'
+import { alsoKeysFor, keysFor, matchesKeys, type KeyPress } from '@shared/shortcuts'
+import {
+  DEFAULT_SETTINGS,
+  type Config,
+  type DetectedScript,
+  type GlobalCommand,
+  type MenuAction,
+  type Project,
+  type RestoreMode,
+  type ScriptGroup
+} from '@shared/types'
 import { applyAppearance } from './appearance'
 import { rememberClosed, takeClosed } from './closed'
 import { findDock, getDock, withDock, type ProjectDock } from './dock'
@@ -10,6 +20,7 @@ import {
   getProject,
   getState,
   patchConfig,
+  patchSettings,
   refreshScripts,
   removeProject,
   restoreProject,
@@ -224,11 +235,43 @@ function nth<T>(list: T[], n: number): T | undefined {
 }
 
 /**
+ * The shortcuts the menu cannot bind (see KEYS): the second key of a few,
+ * tab cycling, and Cmd+Shift+= (Cmd++) for bigger text.
+ */
+function rendererKeys(platform: string): [string, MenuAction][] {
+  const mac = platform === 'darwin'
+  const list: [string | undefined, MenuAction][] = [
+    [alsoKeysFor('new-terminal', platform), 'new-terminal'],
+    [keysFor('next-tab', platform), 'next-tab'],
+    [alsoKeysFor('next-tab', platform), 'next-tab'],
+    [keysFor('previous-tab', platform), 'previous-tab'],
+    [alsoKeysFor('previous-tab', platform), 'previous-tab'],
+    [mac ? 'Cmd+Shift+=' : 'Ctrl+Shift+=', 'zoom-in']
+  ]
+  return list.filter((entry): entry is [string, MenuAction] => !!entry[0])
+}
+
+let keyTable: [string, MenuAction][] | undefined
+
+/** The action a key press stands for among the renderer's own shortcuts. */
+export function rendererAction(press: KeyPress, platform: string): MenuAction | undefined {
+  keyTable ??= rendererKeys(platform)
+  return keyTable.find(([keys]) => matchesKeys(keys, press))?.[1]
+}
+
+/**
  * Cmd+1…9 goes to a tab of the project on screen, Cmd+Shift+1…9 to a
- * project (Ctrl outside macOS). Caught before xterm sees the key.
+ * project (Ctrl outside macOS), plus the shortcuts in `rendererKeys`.
+ * Caught before xterm sees the key.
  */
 export function handleKey(event: KeyboardEvent): void {
   const mac = window.api.platform === 'darwin'
+  const action = rendererAction(event, window.api.platform)
+  if (action) {
+    event.preventDefault()
+    event.stopPropagation()
+    return handleMenu(action)
+  }
   const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
   const digit = /^Digit([1-9])$/.exec(event.code)
   if (!modifier || event.altKey || !digit) return
@@ -244,6 +287,27 @@ export function handleKey(event: KeyboardEvent): void {
   const dock = project && getDock(project.id)
   const id = dock && nth(dock.orderedIds, n)
   if (id) dock.focus(id)
+}
+
+const MIN_FONT = 9
+const MAX_FONT = 24
+
+/** Bigger or smaller text in every terminal, saved like the Settings field. */
+function zoom(step: number | 'reset'): void {
+  const settings = getState().config?.settings
+  if (!settings) return
+  const size = step === 'reset' ? DEFAULT_SETTINGS.fontSize : Math.min(MAX_FONT, Math.max(MIN_FONT, settings.fontSize + step))
+  if (size === settings.fontSize) return
+  patchSettings({ fontSize: size })
+  applyAppearance({ ...settings, fontSize: size })
+}
+
+/** The tab after (or before) the active one, in the order the tabs read on screen, wrapping round. */
+function cycleTab(dock: ProjectDock, step: 1 | -1): void {
+  const ids = dock.orderedIds
+  if (ids.length < 2) return
+  const at = dock.activeId ? ids.indexOf(dock.activeId) : -1
+  dock.focus(ids[(at + step + ids.length) % ids.length])
 }
 
 export function handleMenu(action: MenuAction): void {
@@ -263,6 +327,18 @@ export function handleMenu(action: MenuAction): void {
       return activeId ? getRuntime(activeId)?.restart() : undefined
     case 'clear-terminal':
       return activeId ? getRuntime(activeId)?.term.clear() : undefined
+    case 'next-tab':
+      return dock ? cycleTab(dock, 1) : undefined
+    case 'previous-tab':
+      return dock ? cycleTab(dock, -1) : undefined
+    case 'find':
+      return activeId ? getRuntime(activeId)?.find() : undefined
+    case 'zoom-in':
+      return zoom(1)
+    case 'zoom-out':
+      return zoom(-1)
+    case 'zoom-reset':
+      return zoom('reset')
     case 'add-project':
       return void pickProject()
     case 'toggle-sidebar':
