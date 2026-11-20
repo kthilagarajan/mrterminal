@@ -104,8 +104,12 @@ export function setCleanExitHandler(handler: (id: string) => void): void {
   onCleanExit = handler
 }
 
-/** @param run run the terminal's command on start, or only type it at the prompt */
-export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
+/**
+ * @param run run the terminal's command on start, or only type it at the prompt
+ * @param shellFirst open a plain shell first, without its command; `restart`
+ *   (the play buttons) still runs the command later
+ */
+export function ensureRuntime(def: TerminalDef, run: boolean, shellFirst = false): Runtime {
   const existing = runtimes.get(def.id)
   if (existing) return existing
 
@@ -154,8 +158,9 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
   const start = (
     runCommand: boolean,
     directory?: string,
-    command = rerunCommand(findTerminalDef(id) ?? def)
+    wanted: string | null | undefined = rerunCommand(findTerminalDef(id) ?? def)
   ): void => {
+    const command = wanted ?? undefined
     directory ??= rerunCwd(findTerminalDef(id) ?? def, command, cwd)
     started = true
     exited = false
@@ -172,7 +177,9 @@ export function ensureRuntime(def: TerminalDef, run: boolean): Runtime {
       })
   }
 
-  const firstCommand = (): string | undefined => {
+  // null: a plain shell (undefined would fall back to the default command).
+  const firstCommand = (): string | null | undefined => {
+    if (shellFirst) return null
     const now = findTerminalDef(id) ?? def
     return now.resume ?? rerunCommand(now)
   }
