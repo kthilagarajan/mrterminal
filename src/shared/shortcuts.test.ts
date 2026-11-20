@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { displayKeys, KEYS, matchesKeys, SHORTCUT_GROUPS } from './shortcuts'
+import { displayKeys, isWindowShortcut, KEYS, matchesKeys, SHORTCUT_GROUPS } from './shortcuts'
 
 describe('displayKeys', () => {
   it('writes macOS shortcuts with symbols, modifiers in Apple order', () => {
@@ -42,5 +42,27 @@ describe('matchesKeys', () => {
     expect(matchesKeys('Ctrl+Tab', press('Tab', { ctrlKey: true, shiftKey: true }))).toBe(false)
     expect(matchesKeys('Ctrl+Shift+N', press('KeyN', { ctrlKey: true }))).toBe(false)
     expect(matchesKeys('Cmd+N', press('KeyN'))).toBe(false)
+  })
+})
+
+describe('isWindowShortcut', () => {
+  const press = (key: string, mods: Partial<{ ctrlKey: boolean; shiftKey: boolean; altKey: boolean; metaKey: boolean }> = {}) =>
+    ({ key, ctrlKey: false, shiftKey: false, altKey: false, metaKey: false, ...mods })
+
+  it("lets the window's plain Ctrl shortcuts past the terminal outside macOS", () => {
+    for (const key of ['b', 'B', 'o', 'q', ',']) expect(isWindowShortcut(press(key, { ctrlKey: true }), 'win32')).toBe(true)
+    expect(isWindowShortcut(press('b', { ctrlKey: true }), 'linux')).toBe(true)
+  })
+
+  it('leaves the shell its own keys, and macOS alone', () => {
+    for (const key of ['c', 'd', 'w', 'r', 'a', 'e', 'k']) expect(isWindowShortcut(press(key, { ctrlKey: true }), 'linux')).toBe(false)
+    expect(isWindowShortcut(press('b'), 'linux')).toBe(false)
+    expect(isWindowShortcut(press('b', { ctrlKey: true, shiftKey: true }), 'linux')).toBe(false)
+    expect(isWindowShortcut(press('b', { ctrlKey: true, altKey: true }), 'linux')).toBe(false)
+    expect(isWindowShortcut(press('b', { ctrlKey: true }), 'darwin')).toBe(false)
+  })
+
+  it('lets text zoom and tab cycling past the terminal too', () => {
+    for (const key of ['=', '-', '0', 'Tab']) expect(isWindowShortcut(press(key, { ctrlKey: true }), 'linux')).toBe(true)
   })
 })

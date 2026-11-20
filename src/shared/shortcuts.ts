@@ -58,6 +58,20 @@ export function alsoKeysFor(id: ShortcutId, platform: string): string | undefine
   return also && (platform === 'darwin' ? also.mac : also.other)
 }
 
+/**
+ * Outside macOS, the app's plain Ctrl shortcuts (Ctrl+B, Ctrl+O, Ctrl+Q,
+ * Ctrl+,, text zoom, Ctrl+Tab) that a focused terminal would otherwise send to the shell. The
+ * terminal lets these through to the menu, as VS Code's terminal does.
+ */
+export function isWindowShortcut(
+  event: { key: string; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; metaKey: boolean },
+  platform: string
+): boolean {
+  if (platform === 'darwin' || !event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return false
+  const key = event.key.toLowerCase()
+  return Object.values(KEYS).some(({ other }) => other.toLowerCase() === `ctrl+${key}`)
+}
+
 /** What Settings shows, in the order it shows it. */
 export const SHORTCUT_GROUPS: { title: string; items: [ShortcutId, string][] }[] = [
   {

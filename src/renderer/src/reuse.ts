@@ -50,8 +50,8 @@ export function findReusable(
     return candidates.find((t) => {
       if (t.command) return false
       const now = live(t)
-      if (!samePath(now.cwd, want.cwd)) return false
-      return now.busy ? now.command === want.command : t.last === want.command
+      if (now.busy) return now.command === want.command && samePath(now.cwd, want.cwd)
+      return t.last === want.command && samePath(t.lastCwd ?? now.cwd, want.cwd)
     })
   }
   if (!want.title) return undefined
