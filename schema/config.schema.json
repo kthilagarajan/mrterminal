@@ -68,6 +68,11 @@
           "default": null,
           "description": "Editor the top bar's Open button uses: cursor, vscode, vscode-insiders, windsurf, zed, sublime, webstorm, idea, pycharm, goland, rider, android-studio or fleet. null = the first one installed."
         },
+        "terminalCommand": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Id of the global command the top bar's terminal button starts (the one picked last from its menu). null = a plain shell."
+        },
         "fontFamily": {
           "type": ["string", "null"],
           "default": null,

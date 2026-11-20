@@ -18,11 +18,29 @@ describe('findEditors', () => {
     expect(found[2].launch).toEqual({ kind: 'app', app: '/Users/me/Applications/WebStorm.app' })
   })
 
+  it('opens the VS Code family, Zed and Sublime through their launcher on macOS, in a new window', () => {
+    const found = findEditors(
+      env('darwin', [
+        '/Applications/Cursor.app',
+        '/Applications/Cursor.app/Contents/Resources/app/bin/cursor',
+        '/Applications/Zed.app',
+        '/Applications/Zed.app/Contents/MacOS/cli',
+        '/Applications/Sublime Text.app'
+      ])
+    )
+    expect(found.map((e) => [e.id, e.launch])).toEqual([
+      ['cursor', { kind: 'exec', file: '/Applications/Cursor.app/Contents/Resources/app/bin/cursor', args: ['--new-window'] }],
+      ['zed', { kind: 'exec', file: '/Applications/Zed.app/Contents/MacOS/cli', args: ['--new'] }],
+      // No launcher inside the bundle: fall back to `open -a`.
+      ['sublime', { kind: 'app', app: '/Applications/Sublime Text.app' }]
+    ])
+  })
+
   it('finds launchers on the PATH on Linux', () => {
     const found = findEditors(env('linux', ['/usr/bin/code', '/home/me/.local/bin/zeditor'], '/usr/bin:/home/me/.local/bin'))
     expect(found.map((e) => [e.id, e.launch])).toEqual([
-      ['vscode', { kind: 'exec', file: '/usr/bin/code' }],
-      ['zed', { kind: 'exec', file: '/home/me/.local/bin/zeditor' }]
+      ['vscode', { kind: 'exec', file: '/usr/bin/code', args: ['--new-window'] }],
+      ['zed', { kind: 'exec', file: '/home/me/.local/bin/zeditor', args: ['--new'] }]
     ])
   })
 
@@ -36,8 +54,8 @@ describe('findEditors', () => {
       )
     )
     expect(found.map((e) => [e.id, e.launch])).toEqual([
-      ['cursor', { kind: 'exec', file: 'C:\\Users\\me\\AppData\\Local\\Programs\\cursor\\Cursor.exe' }],
-      ['vscode', { kind: 'exec', file: 'C:\\VSCode\\bin\\code.cmd' }]
+      ['cursor', { kind: 'exec', file: 'C:\\Users\\me\\AppData\\Local\\Programs\\cursor\\Cursor.exe', args: ['--new-window'] }],
+      ['vscode', { kind: 'exec', file: 'C:\\VSCode\\bin\\code.cmd', args: ['--new-window'] }]
     ])
   })
 
