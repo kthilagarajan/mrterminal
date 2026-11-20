@@ -12,7 +12,7 @@ const { title, description, image = 'screenshots/workspace.png' } = Astro.props
 const base = import.meta.env.BASE_URL
 const canonical = new URL(Astro.url.pathname, Astro.site)
 const imageUrl = new URL(`${base}${image}`, Astro.site)
-const fullTitle = title === 'MrTerminal' ? 'MrTerminal: one window for every terminal your projects need' : `${title} · MrTerminal`
+const fullTitle = title === 'MrTerminal' ? 'MrTerminal: one terminal workspace for you and your AI agents' : `${title} · MrTerminal`
 const nav = [
   { href: `${base}docs/`, label: 'Docs' },
   { href: `${base}docs/cli/`, label: 'CLI' },

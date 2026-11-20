@@ -11,6 +11,10 @@ const setupUrl = new URL(`${base}setup.md`, Astro.site).href
 >
   <h1>Coding agents</h1>
   <p>
+    MrTerminal is built for you and your agents to share. You get buttons, layouts and shortcuts; the agent gets
+    <code>mrt</code>, a command line over the same terminals.
+  </p>
+  <p>
     Coding agents are good at running commands and bad at keeping them running. A dev server started in an agent's
     own shell blocks it or disappears with it, and you can't see what it printed. With <code>mrt</code>, the agent
     runs long-lived commands in your MrTerminal window instead:
@@ -18,8 +22,16 @@ const setupUrl = new URL(`${base}setup.md`, Astro.site).href
   <ul>
     <li><strong>You see everything.</strong> Every terminal the agent opens or types into is a normal tab, brought on screen as it happens. Nothing runs in the background.</li>
     <li><strong>You stay in control.</strong> Press Ctrl-C, type into the same terminal, or close it, just as with any other tab. Your keyboard focus is never taken away.</li>
+    <li><strong>No pile of duplicate tabs.</strong> Agents check what is already open and reuse it, so <code>mrt run dev</code> restarts the dev server you already have instead of starting a second one.</li>
     <li><strong>The agent gets clean results.</strong> <code>mrt run test --wait</code> returns only the test run's output and its real exit code. <code>mrt wait --match</code> waits for a server's "ready" line.</li>
   </ul>
+
+  <h2>Start an agent</h2>
+  <p>
+    The arrow next to <strong>+ Terminal</strong> lists Claude Code, Codex, Cursor, Antigravity and Grok, wherever
+    they're installed. Pick one and it starts in the project's folder, in a terminal like any other. Add your own
+    agents and flags under <strong>Settings → Global commands</strong>.
+  </p>
 
   <h2>Set it up</h2>
   <p>The quickest way is to let the agent do it. Paste this into your agent:</p>

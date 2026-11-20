@@ -49,6 +49,13 @@ export interface TerminalDef {
    * again (restart, the project's play button, the next launch) runs it.
    */
   last?: string
+  /**
+   * The folder `last` (and `resume`) started in. A command often moves the
+   * shell (`cd web && npm run dev`), and a terminal opened for one script can
+   * be used for another command elsewhere, so `cwd` alone cannot say where
+   * to run it again.
+   */
+  lastCwd?: string
 }
 
 export interface CustomCommand {
@@ -181,6 +188,8 @@ export interface PtyStatus {
   process: string
   /** The command line running, when busy and the shell reports it. */
   command?: string
+  /** The folder that command line started in, when known. */
+  cwd?: string
 }
 
 /** A command line run in a terminal, as reported by its shell. */

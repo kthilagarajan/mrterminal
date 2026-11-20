@@ -5,12 +5,17 @@ const base = import.meta.env.BASE_URL
 
 <Docs
   title="Getting started"
-  description="Install MrTerminal on macOS, Windows or Linux, add a project, run its scripts in one click, arrange terminals, save presets and restore sessions."
+  description="Install MrTerminal on macOS, Windows or Linux, add a project, run its scripts in one click, start coding agents, arrange terminals, save presets and restore sessions."
 >
   <h1>Getting started</h1>
   <p>
     MrTerminal is a desktop app that holds the terminals your projects need. It isn't a new shell and it isn't a
     terminal emulator: each terminal is your own login shell, drawn with xterm.js and arranged in splits and tabs.
+  </p>
+  <p>
+    It is made to be used by you and by your coding agents at the same time. You click buttons and use shortcuts;
+    Claude Code, Codex and other agents use the <code>mrt</code> command. Both work on the same terminals, and every
+    terminal an agent opens is a normal tab you can watch and take over.
   </p>
 
   <h2>Install</h2>
@@ -49,14 +54,41 @@ const base = import.meta.env.BASE_URL
     <li>A project card lists what is running in it right now, even when the card is folded.</li>
     <li>Drag tabs to split, stack and resize. Each project keeps its own layout.</li>
     <li>Add commands that aren't in any script file under <strong>Custom commands</strong>.</li>
+    <li>The button beside <strong>+ Terminal</strong> opens the project in your editor. Its arrow lists every editor MrTerminal finds (Cursor, VS Code, Windsurf, Zed, Sublime Text, the JetBrains IDEs, Fleet).</li>
     <li><kbd>⇧⌘T</kbd> reopens the tab or project you just closed.</li>
   </ul>
+
+  <h2>Start a coding agent</h2>
+  <p>
+    The arrow next to <strong>+ Terminal</strong> lists the agents MrTerminal found on your machine: Claude Code,
+    Codex, Cursor, Antigravity and Grok. Pick one and it opens in a new terminal in the project's folder, or press
+    <strong>current</strong> to type it into the terminal on screen. <strong>Global commands…</strong> opens Settings,
+    where you can change each command's program and flags, hide it, or add your own.
+  </p>
+  <p>
+    To let the agent run your dev server and tests in MrTerminal too, set up <code>mrt</code> and its skill: see
+    <a href={`${base}docs/agents/`}>coding agents</a>.
+  </p>
+
+  <h2>Keyboard shortcuts</h2>
+  <ul>
+    <li><kbd>⌘T</kbd> new terminal, <kbd>⌘D</kbd> / <kbd>⇧⌘D</kbd> split right or down, <kbd>⌘W</kbd> close.</li>
+    <li><kbd>⇧⌘R</kbd> restart a terminal, <kbd>⌘K</kbd> clear it.</li>
+    <li><kbd>⌘1</kbd>…<kbd>⌘9</kbd> go to a tab, <kbd>⇧⌘1</kbd>…<kbd>⇧⌘9</kbd> go to a project, <kbd>⌘B</kbd> toggle the sidebar.</li>
+  </ul>
+  <p>On Windows and Linux use Ctrl+Shift instead of ⌘, so the shell keeps Ctrl+W, Ctrl+D and Ctrl+K. Settings lists every shortcut.</p>
 
   <h2>Presets and sessions</h2>
   <p>
     A preset is a set of terminals and their layout that opens in one click. Arrange what a task needs, then press
     <strong>+</strong> next to Presets. When you quit and reopen, MrTerminal asks whether to resume your terminals
     and run their commands again, restore only the layout, or start fresh. You can set a default in Settings.
+  </p>
+  <p>
+    Every terminal remembers the last command that ran in it and the folder it ran in, whether it came from the
+    sidebar, was typed by hand or was sent by an agent. Restarting a terminal runs it again there. Each project can
+    also keep its terminals, commands and presets in <code>.mrterminal/project.json</code>, which you can check in so
+    teammates get the same setup.
   </p>
 
   <h2>From the command line</h2>
